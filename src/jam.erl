@@ -29,7 +29,8 @@
          round_fractional_seconds/1,
          convert_tz/2,
          is_valid/1, is_valid/2, is_complete/1,
-         normalize/1, to_epoch/1, to_epoch/2]).
+         normalize/1, to_epoch/1, to_epoch/2,
+         tz_offset/1]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -541,8 +542,8 @@ is_valid_time(#time{}=Time, Options) ->
 %% As of this writing, the valid time zone range is from -1200 to
 %% +1400. Since politicians love to mess with this, going to treat
 %% 1500 as an absolute maximum and hope for the best.
-is_valid_timezone(#timezone{hours=Hours, minutes=Minutes}, _Options) ->
-    abs(Hours*100 + Minutes) =< 1500.
+is_valid_timezone(#timezone{}=TZ, _Options) ->
+    abs(tz_offset(TZ)) =< 15 * 3600.
 
 -spec normalize(date_record()) -> {integer(), date_record()};
                (time_record()) -> {integer(), time_record()};
@@ -677,6 +678,11 @@ wrap(Int, {Min, Max}) when Int > Max ->
     {1, Min+(Adj-1)};
 wrap(Int, {_Min, _Max}) ->
     {0, Int}.
+
+%% Convert to seconds
+-spec tz_offset(timezone()) -> integer().
+tz_offset(#timezone{hours=Hours, minutes=Minutes}) ->
+    Hours*3600 + Minutes*60.
 
 -ifdef(TEST).
 normalize_test_() ->
