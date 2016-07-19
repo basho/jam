@@ -318,7 +318,10 @@ to_string(#datetime{date=Date, time=Time}, Options) ->
     DateTimeDivider =
         date_time_divider(lists:keyfind(datetime_separator, 1, Options)),
     to_string(Date, Options) ++ DateTimeDivider ++
-        to_string(Time, lists:keydelete(t_prefix, 1, Options)).
+        to_string(Time, lists:keydelete(t_prefix, 1, Options));
+to_string(#timezone{}=Tz, Options) ->
+    UseSeparators = proplists:get_value(format, Options, extended) == extended,
+    render_tz(Tz, UseSeparators, Options).
 
 date_time_divider({datetime_separator, t}) ->
     "T";
@@ -440,6 +443,16 @@ maybe_undefined(Value) ->
     Value.
 
 -ifdef(TEST).
+tz_labels_test_() ->
+    Mappings = [
+                {"+00", "Z"},
+                {"+15", "+15:00"},
+                {"-1230", "-12:30"}
+               ],
+    lists:map(fun({Input, Output}) ->
+                          ?_assertEqual(Output, to_string(jam:process(parse_tz(Input))))
+                  end, Mappings).
+
 erlang_tuples_string_test_() ->
     Mappings = [
                 {{{1825, 5, 11}, {0, 13, 57}}, "1825-05-11T00:13:57"},
