@@ -361,10 +361,14 @@ round_fractional_seconds(DateTime) ->
 %% optional : separator.
 convert_tz(undefined, _NewTz) ->
     {0, undefined};
+convert_tz(#datetime{time=#time{timezone=undefined}}, _NewTz) ->
+    {0, undefined};
 convert_tz(#datetime{date=Date, time=Time}, NewTz) ->
     {DateAdj, NewTime} = convert_tz(Time, NewTz),
     NewDate = jam_math:add_date(jam_erlang:to_date(Date), DateAdj),
     {DateAdj, #datetime{date=jam_erlang:tuple_to_record(#date{}, NewDate), time=NewTime}};
+convert_tz(#time{timezone=undefined}, _NewTz) ->
+    {0, undefined};
 convert_tz(#time{}=Time, NewTz) ->
     convert_processed_tz(Time, process(jam_iso8601:parse_timezone(NewTz))).
 
@@ -530,17 +534,16 @@ is_valid_time(#time{}=Time, Options) ->
     is_valid_time_tuple(jam_erlang:to_time(Time),
                         lists:member(leap_second_midnight, Options)).
 
--spec normalize(date_record()) -> date_record();
-               (time_record()) -> time_record();
-               (datetime_record()) -> datetime_record().
+-spec normalize(date_record()) -> {integer(), date_record()};
+               (time_record()) -> {integer(), time_record()};
+               (datetime_record()) -> {integer(), datetime_record()}.
 normalize(#datetime{date=Date, time=Time}) ->
     {DateAdjust, NewTime} = normalize_time(Time),
-    #datetime{date=normalize_date(Date, DateAdjust), time=NewTime};
+    {DateAdjust, #datetime{date=normalize_date(Date, DateAdjust), time=NewTime}};
 normalize(#date{}=Date) ->
-    normalize_date(Date, 0);
+    {0, normalize_date(Date, 0)};
 normalize(#time{}=Time) ->
-    {_, NewTime} = normalize_time(Time),
-    NewTime.
+    normalize_time(Time).
 
 %% If there's an adjustment due to time, the date must have been fully
 %% qualified (thus no need to watch out for `undefined' for the month
@@ -664,3 +667,16 @@ wrap(Int, {Min, Max}) when Int > Max ->
     {1, Min+(Adj-1)};
 wrap(Int, {_Min, _Max}) ->
     {0, Int}.
+
+-ifdef(TEST).
+normalize_test_() ->
+    EquivWithAdjust = [
+                       {#time{hour=0,minute=0,second=0},
+                        #time{hour=24,minute=0,second=0}},
+                       {#time{hour=0,minute=0,second=0},
+                        #time{hour=23,minute=59,second=60}}
+                      ],
+    lists:map(fun({Normalized, Time}) ->
+                      ?_assertEqual({1, Normalized}, jam:normalize(Time))
+              end, EquivWithAdjust).
+-endif.

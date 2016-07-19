@@ -93,27 +93,28 @@ For a more sophisticated example, we handle a leap second with a
 fractional component and time zone conversion.
 
 Note that in order to support passing times without dates as
-arguments, `jam:round_fractional_seconds/1` and `jam:convert_tz`
-return a two-tuple, with the first value an integer expressing whether
-or not a date adjustment resulted. Rounding the fractional second in
-the example below does not change the date, but the time zone
-conversion does.
+arguments, `jam:normalize/1`, `jam:round_fractional_seconds/1` and
+`jam:convert_tz/2` return a two-tuple, with the first value an integer
+expressing whether or not a date adjustment resulted.
 
 ```erlang
-8> {_, DT} = jam:round_fractional_seconds(jam:normalize(jam:process(jam_iso8601:parse("20150630T23:59:60.738")))).
+1> {_, DT1} = jam:normalize(jam:process(jam_iso8601:parse("20150630T23:59:60.738Z"))).
+{1,
+ {datetime,{date,2015,7,1},
+           {time,0,0,0,
+                 {fraction,0.738,3},
+                 undefined,
+                 {timezone,"Z",0,0}}}}
+2> {_, DT2} = jam:round_fractional_seconds(DT1).
 {0,
  {datetime,{date,2015,7,1},
-           {time,0,0,1,undefined,undefined,undefined}}}
-9> {_, DT} = jam:round_fractional_seconds(jam:normalize(jam:process(jam_iso8601:parse("20150630T23:59:60.738+00")))).
-{0,
- {datetime,{date,2015,7,1},
-           {time,0,0,1,undefined,undefined,{timezone,"+00",0,0}}}}
-10> {_, NewDT} = jam:convert_tz(DT, "-07:30").
+           {time,0,0,1,undefined,undefined,{timezone,"Z",0,0}}}}
+3> {_, DT3} = jam:convert_tz(DT2, "-07:30").
 {-1,
  {datetime,{date,2015,6,30},
            {time,16,30,1,undefined,undefined,
                  {timezone,"-07:30",7,30}}}}
-11> jam_iso8601:to_string(NewDT).
+4> jam_iso8601:to_string(DT3).
 "2015-06-30T16:30:01-07:30"
 ```
 
@@ -145,5 +146,11 @@ parsing performance.
              {parsed_timezone,"-05","-05",undefined}}
 ```
 
+Jam also allows Erlang datetime tuples to be converted to strings.
+
 The `iso8601_tests` module further illustrates usage of the `jam`
 library.
+
+## Joe's Abstract Machine
+
+The term "JAM" in Erlang originally referred to the first
