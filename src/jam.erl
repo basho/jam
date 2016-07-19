@@ -484,11 +484,13 @@ is_complete(#parsed_calendar{day=undefined}) ->
 is_complete(#parsed_calendar{}) ->
     true.
 
--spec is_valid(processed_record()) -> boolean().
+-spec is_valid(processed_record()|'undefined') -> boolean().
 is_valid(Record) ->
     is_valid(Record, []).
 
--spec is_valid(processed_record(), list()) -> boolean().
+-spec is_valid(processed_record()|'undefined', list()) -> boolean().
+is_valid(undefined, _Options) ->
+    false;
 is_valid(#datetime{date=Date, time=Time}, Options) ->
     is_valid_date(Date, Options) andalso is_valid_time(Time, Options);
 is_valid(#date{}=Date, Options) ->
