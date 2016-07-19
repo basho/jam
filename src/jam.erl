@@ -679,10 +679,13 @@ wrap(Int, {Min, Max}) when Int > Max ->
 wrap(Int, {_Min, _Max}) ->
     {0, Int}.
 
-%% Convert to seconds
+%% Convert to seconds. Must be the negation of the resulting integer
+%% because the timezone record tracks the adjustment necessary to
+%% convert to UTC, while users/developers will expect the same sign as
+%% the original string
 -spec tz_offset(timezone()) -> integer().
 tz_offset(#timezone{hours=Hours, minutes=Minutes}) ->
-    Hours*3600 + Minutes*60.
+    -(Hours*3600 + Minutes*60).
 
 -ifdef(TEST).
 normalize_test_() ->
@@ -704,8 +707,17 @@ tz_valid_test_() ->
            {#timezone{hours=-15, minutes=-01}, false}
           ],
     lists:map(fun({TZ, IsValid}) ->
-                      io:format("Checking ~p~n", [TZ]),
                       ?_assertEqual(IsValid, is_valid(TZ))
+              end, TZs).
+
+tz_offset_test_() ->
+    TZs = [
+           {#timezone{hours=4, minutes=30}, -16200},
+           {#timezone{hours=-12, minutes=-45}, 45900},
+           {#timezone{hours=0, minutes=0}, 0}
+          ],
+    lists:map(fun({TZ, Offset}) ->
+                      ?_assertEqual(Offset, tz_offset(TZ))
               end, TZs).
 
 -endif.
