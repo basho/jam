@@ -27,7 +27,7 @@
          parse_time/1, parse_time/2,
          parse_date/1, parse_date/2,
          parse_datetime/1, parse_datetime/2,
-         parse_timezone/1, parse_timezone/2,
+         parse_tz/1, parse_tz/2,
          to_string/1, to_string/2]).
 
 -ifdef(TEST).
@@ -145,12 +145,12 @@ parse_datetime(REs, DateTime) ->
               fun(D) -> match_ordinal_time(REs, D) end,
               fun(D) -> match_week_time(REs, D) end], DateTime).
 
--spec parse_timezone(string()) -> parsed_timezone()|'undefined'.
-parse_timezone(TZ) ->
-    parse_timezone(re_list(), TZ).
+-spec parse_tz(string()) -> parsed_timezone()|'undefined'.
+parse_tz(TZ) ->
+    parse_tz(re_list(), TZ).
 
--spec parse_timezone(list(), string()) -> parsed_timezone()|'undefined'.
-parse_timezone(REs, TZ) ->
+-spec parse_tz(list(), string()) -> parsed_timezone()|'undefined'.
+parse_tz(REs, TZ) ->
     match_timezone(REs, TZ).
 
 match_week(REs, Date) ->

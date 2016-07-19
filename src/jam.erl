@@ -181,7 +181,7 @@ preprocess(Tuple, _Options) ->
 maybe_default_timezone(undefined) ->
     undefined;
 maybe_default_timezone(Timezone) ->
-    jam_iso8601:parse_timezone(Timezone).
+    jam_iso8601:parse_tz(Timezone).
 
 -spec process(parsed_time()) -> time_record();
              (parsed_datetime()) -> datetime_record();
@@ -371,7 +371,7 @@ convert_tz(#datetime{date=Date, time=Time}, NewTz) ->
 convert_tz(#time{timezone=undefined}, _NewTz) ->
     {0, undefined};
 convert_tz(#time{}=Time, NewTz) ->
-    convert_processed_tz(Time, process(jam_iso8601:parse_timezone(NewTz))).
+    convert_processed_tz(Time, process(jam_iso8601:parse_tz(NewTz))).
 
 convert_processed_tz(#time{timezone=TzRec}=Time, TzRec) ->
     {0, Time};
