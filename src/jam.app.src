@@ -1,0 +1,17 @@
+{application, jam,
+ [
+  {description, "An Erlang date/time processing library"},
+  {vsn, "1"},
+  {modules, [
+             jam,
+             jam_math,
+             jam_erlang,
+             jam_iso8601
+            ]},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
