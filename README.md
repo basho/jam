@@ -153,4 +153,7 @@ library.
 
 ## Joe's Abstract Machine
 
-The term "JAM" in Erlang originally referred to the first
+The term "JAM" in Erlang originally referred to Joe Armstrong's
+prolog-based Erlang VM. The name collision is purely coincidental, but
+convenient in that there appear to be no existing Erlang libraries
+named `jam` (perhaps as a consequence).
