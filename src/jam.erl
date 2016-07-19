@@ -496,7 +496,9 @@ is_valid(#datetime{date=Date, time=Time}, Options) ->
 is_valid(#date{}=Date, Options) ->
     is_valid_date(Date, Options);
 is_valid(#time{}=Time, Options) ->
-    is_valid_time(Time, Options).
+    is_valid_time(Time, Options);
+is_valid(#timezone{}=TZ, Options) ->
+    is_valid_timezone(TZ, Options).
 
 is_valid_date(#date{year=Year, month=undefined, day=undefined}, _Options)
   when is_integer(Year) ->
@@ -535,6 +537,12 @@ is_valid_time(#time{hour=Hour, minute=Minute, second=undefined}, _Options) ->
 is_valid_time(#time{}=Time, Options) ->
     is_valid_time_tuple(jam_erlang:to_time(Time),
                         lists:member(leap_second_midnight, Options)).
+
+%% As of this writing, the valid time zone range is from -1200 to
+%% +1400. Since politicians love to mess with this, going to treat
+%% 1500 as an absolute maximum and hope for the best.
+is_valid_timezone(#timezone{hours=Hours, minutes=Minutes}, _Options) ->
+    abs(Hours*100 + Minutes) =< 1500.
 
 -spec normalize(date_record()) -> {integer(), date_record()};
                (time_record()) -> {integer(), time_record()};
@@ -681,4 +689,17 @@ normalize_test_() ->
     lists:map(fun({Normalized, Time}) ->
                       ?_assertEqual({1, Normalized}, jam:normalize(Time))
               end, EquivWithAdjust).
+
+tz_valid_test_() ->
+    TZs = [
+           {#timezone{hours=15, minutes=00}, true},
+           {#timezone{hours=15, minutes=01}, false},
+           {#timezone{hours=-15, minutes=-00}, true},
+           {#timezone{hours=-15, minutes=-01}, false}
+          ],
+    lists:map(fun({TZ, IsValid}) ->
+                      io:format("Checking ~p~n", [TZ]),
+                      ?_assertEqual(IsValid, is_valid(TZ))
+              end, TZs).
+
 -endif.
