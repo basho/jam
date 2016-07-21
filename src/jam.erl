@@ -432,8 +432,6 @@ utc_timezone_record() ->
 %% We want the integer `timezone' fields to represent adjustments
 %% necessary to convert to UTC, so India, with a +05:30 time zone,
 %% will map to `{timezone, "+05:30", -5, -30}' or `{timezone, "+0530", -5, -30}'.
-process_timezone(undefined) ->
-    undefined;
 process_timezone(#parsed_timezone{label="Z"}) ->
     utc_timezone_record();
 process_timezone(#parsed_timezone{label=TZ, hours=TZH, minutes=TZM}) ->
@@ -485,11 +483,11 @@ is_complete(#parsed_calendar{day=undefined}) ->
 is_complete(#parsed_calendar{}) ->
     true.
 
--spec is_valid(processed_record()|'undefined') -> boolean().
+-spec is_valid(processed_record()|timezone()|'undefined') -> boolean().
 is_valid(Record) ->
     is_valid(Record, []).
 
--spec is_valid(processed_record()|'undefined', list()) -> boolean().
+-spec is_valid(processed_record()|timezone()|'undefined', list()) -> boolean().
 is_valid(undefined, _Options) ->
     false;
 is_valid(#datetime{date=Date, time=Time}, Options) ->
