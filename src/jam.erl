@@ -550,13 +550,12 @@ normalize(#datetime{date=Date, time=Time}) ->
     {DateAdjust, NewTime} = normalize_time(Time),
     {DateAdjust, #datetime{date=normalize_date(Date, DateAdjust), time=NewTime}};
 normalize(#date{}=Date) ->
-    {0, normalize_date(Date, 0)};
+    {0, Date};
 normalize(#time{}=Time) ->
     normalize_time(Time).
 
-%% If there's an adjustment due to time, the date must have been fully
-%% qualified (thus no need to watch out for `undefined' for the month
-%% or day).
+normalize_date(#date{}=Date, 0) ->
+    Date;
 normalize_date(#date{}=Date, Adjust) ->
     jam_erlang:tuple_to_record(
       #date{}, jam_math:add_date(jam_erlang:to_date(Date), Adjust)).
@@ -720,7 +719,7 @@ tz_offset(#timezone{hours=Hours, minutes=Minutes}) ->
     -(Hours*3600 + Minutes*60).
 
 -ifdef(TEST).
-normalize_test_() ->
+normalize_with_adjust_test_() ->
     EquivWithAdjust = [
                        {#time{hour=0,minute=0,second=0},
                         #time{hour=24,minute=0,second=0}},
@@ -730,6 +729,24 @@ normalize_test_() ->
     lists:map(fun({Normalized, Time}) ->
                       ?_assertEqual({1, Normalized}, jam:normalize(Time))
               end, EquivWithAdjust).
+
+normalize_without_adjust_test_() ->
+    NoAdjust = [
+                %% Would not expect a datetime to be populated for
+                %% just a year, but let's make sure things don't blow
+                %% up
+                #datetime{date=#date{year=2016},
+                          time=#time{}},
+                #datetime{date=#date{year=2016},
+                          time=undefined},
+
+                #date{year=2016, month=2},
+                #time{hour=15, minute=7},
+                #time{hour=15}
+               ],
+    lists:map(fun(Record) ->
+                      ?_assertEqual({0, Record}, jam:normalize(Record))
+              end, NoAdjust).
 
 tz_valid_test_() ->
     TZs = [
