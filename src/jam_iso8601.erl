@@ -295,7 +295,7 @@ match_timezone_re({match, [TZ, TZH, TZM]}) ->
 %%   {decimal_mark, comma|period} (period is default)
 %%   {z, true|false} (true is default, false means use "+00:00" or "+0000")
 
--spec to_string(compiled_record()|calendar:datetime()|non_neg_integer()) -> string().
+-spec to_string(compiled_record()|calendar:datetime()) -> string().
 to_string(Record) ->
     to_string(Record, [{format, extended}]).
 
