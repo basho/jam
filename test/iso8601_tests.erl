@@ -101,10 +101,10 @@
 -define(GREGORIAN_MAGIC, 62167219200).
 
 to_string_test_() ->
-    lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:process(jam_iso8601:parse(Str)))) end,
+    lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:compile(jam_iso8601:parse(Str)))) end,
               ?EXTENDED_STRINGS)
         ++
-    lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:process(jam_iso8601:parse(Str)), [{format, basic}])) end,
+    lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:compile(jam_iso8601:parse(Str)), [{format, basic}])) end,
               ?BASIC_STRINGS).
 
 non_roundtrip_string_test() ->
@@ -120,25 +120,25 @@ non_roundtrip_string_test() ->
     %%   `{z, true|false}' works
     ?assertEqual("2016-06-23 23:59:59,123-05:00",
                  jam_iso8601:to_string(
-                   jam:process(jam_iso8601:parse("20160623T235959.123-0500")), [{datetime_separator, space}, {t_prefix, true}, {decimal_mark, comma}])),
+                   jam:compile(jam_iso8601:parse("20160623T235959.123-0500")), [{datetime_separator, space}, {t_prefix, true}, {decimal_mark, comma}])),
     ?assertEqual("2016-06-23 23:59:59,123+00:00",
                  jam_iso8601:to_string(
-                   jam:process(jam_iso8601:parse("20160623T235959.123Z")), [{datetime_separator, space}, {t_prefix, true}, {decimal_mark, comma}, {z, false}])),
+                   jam:compile(jam_iso8601:parse("20160623T235959.123Z")), [{datetime_separator, space}, {t_prefix, true}, {decimal_mark, comma}, {z, false}])),
     ?assertEqual("2016-06-23 23:59:59.123+00:00",
                  jam_iso8601:to_string(
-                   jam:process(jam_iso8601:parse("20160623T235959.123Z")), [{datetime_separator, space}, {t_prefix, true}, {decimal_mark, period}, {z, false}])),
+                   jam:compile(jam_iso8601:parse("20160623T235959.123Z")), [{datetime_separator, space}, {t_prefix, true}, {decimal_mark, period}, {z, false}])),
     ?assertEqual("2016-06-23T23:30:00Z",
                  jam_iso8601:to_string(
-                   jam:process(jam_iso8601:parse("20160623T23.500Z")), [{datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
+                   jam:compile(jam_iso8601:parse("20160623T23.500Z")), [{datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
     ?assertEqual("2016-06-23T23Z",
                  jam_iso8601:to_string(
-                   jam:process(jam_iso8601:parse("20160623T23Z")), [{datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
+                   jam:compile(jam_iso8601:parse("20160623T23Z")), [{datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
     ?assertEqual("T2300Z",
                  jam_iso8601:to_string(
-                   jam:process(jam_iso8601:parse("23:00+00")), [{format, basic}, {datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
+                   jam:compile(jam_iso8601:parse("23:00+00")), [{format, basic}, {datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
     ?assertEqual("2016-06-23T23:00Z",
                  jam_iso8601:to_string(
-                   jam:process(
+                   jam:compile(
                      jam_iso8601:parse("20160623T23Z"),
                      [{target_accuracy, minute}]),
                    [{datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])).
@@ -147,7 +147,7 @@ non_roundtrip_string_test() ->
 
 
 map_tz(Str, TZ) ->
-    NewDateTime = jam:convert_tz(jam:process(jam_iso8601:parse(Str)), TZ),
+    NewDateTime = jam:convert_tz(jam:compile(jam_iso8601:parse(Str)), TZ),
     jam_erlang:to_datetime(NewDateTime).
 
 tzconversions_test_() ->
@@ -223,18 +223,18 @@ timezones_test_() ->
               end, ?DATETIMES).
 
 map_date(State, Str) ->
-    jam:to_epoch(jam:process(jam_iso8601:parse(State, Str), [{target_accuracy, second}])).
+    jam:to_epoch(jam:compile(jam_iso8601:parse(State, Str), [{target_accuracy, second}])).
 
 map_frac(Str) ->
     %% We test with millisecond epoch values, so the precision
     %% argument is 3 (for 10^3)
-    jam:to_epoch(jam:process(jam_iso8601:parse(Str)), 3).
+    jam:to_epoch(jam:compile(jam_iso8601:parse(Str)), 3).
 
 map_utc_time(Str) ->
     %% Arbitrary date
     Date = {2001, 12, 03},
     Time = jam_iso8601:parse(Str),
-    ProcessedTime = jam:process(Time, [{target_accuracy, second}]),
+    ProcessedTime = jam:compile(Time, [{target_accuracy, second}]),
 
     %% If this results in a changed date, we need to add another test
     %% utility function to increment our arbitrary date
@@ -245,12 +245,12 @@ map_utc_time(Str) ->
         universal_datetime_TO_utc_seconds({Date, {0, 0, 0}}).
 
 map_datetime(Str) ->
-    Processed = jam:process(jam_iso8601:parse(Str), [{target_accuracy, second}]),
+    Processed = jam:compile(jam_iso8601:parse(Str), [{target_accuracy, second}]),
     Rounded = jam:round_fractional_seconds(Processed),
     jam:to_epoch(Rounded).
 
 map_utc_datetime(Str) ->
-    Processed = jam:process(jam_iso8601:parse(Str), [{target_accuracy, second}]),
+    Processed = jam:compile(jam_iso8601:parse(Str), [{target_accuracy, second}]),
     DateTime = jam:round_fractional_seconds(Processed),
     UTCDateTime = jam:convert_tz(DateTime, "+00:00"),
     jam:to_epoch(UTCDateTime).

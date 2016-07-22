@@ -137,9 +137,9 @@
        ).
 -type datetime_record() :: #datetime{}.
 
--type processed_record() :: date_record()|time_record()|datetime_record().
+-type compiled_record() :: date_record()|time_record()|datetime_record().
 
--type processing_error() :: 'incomplete_date'|'incomplete_time'.
+-type compilation_error() :: 'incomplete_date'|'incomplete_time'.
 -type epoch_error() :: 'missing_time'|'missing_date'|'incomplete_datetime'.
 
 -endif.

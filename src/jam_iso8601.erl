@@ -285,7 +285,7 @@ match_timezone_re(nomatch) ->
 match_timezone_re({match, [TZ, TZH, TZM]}) ->
     build_parsed_timezone(TZ, TZH, TZM).
 
-%% XXX Should also support printing parsed but not processed tuples so
+%% XXX Should also support printing parsed but not compiled tuples so
 %% we can output ordinal dates (and eventually week dates).
 %%
 %% Options:
@@ -295,7 +295,7 @@ match_timezone_re({match, [TZ, TZH, TZM]}) ->
 %%   {decimal_mark, comma|period} (period is default)
 %%   {z, true|false} (true is default, false means use "+00:00" or "+0000")
 
--spec to_string(processed_record()|calendar:datetime()|non_neg_integer()) -> string().
+-spec to_string(compiled_record()|calendar:datetime()|non_neg_integer()) -> string().
 to_string(Record) ->
     to_string(Record, [{format, extended}]).
 
@@ -450,7 +450,7 @@ tz_labels_test_() ->
                 {"-1230", "-12:30"}
                ],
     lists:map(fun({Input, Output}) ->
-                          ?_assertEqual(Output, to_string(jam:process(parse_tz(Input))))
+                          ?_assertEqual(Output, to_string(jam:compile(parse_tz(Input))))
                   end, Mappings).
 
 erlang_tuples_string_test_() ->
@@ -482,10 +482,10 @@ dates_in_june_test_() ->
                  "2016-181T00:00:00+01"],
 
     lists:map(fun(D) -> ?_assertMatch({_, 6, _},
-                                      jam_erlang:record_to_tuple(jam:process(parse(D)))) end,
+                                      jam_erlang:record_to_tuple(jam:compile(parse(D)))) end,
               Dates)
         ++
-    lists:map(fun(DT) -> DateTime = jam:process(parse(DT)),
+    lists:map(fun(DT) -> DateTime = jam:compile(parse(DT)),
                          ?_assertMatch({_, 6, _},
                                        jam_erlang:record_to_tuple(DateTime#datetime.date)) end,
               DateTimes).
@@ -495,16 +495,16 @@ valid_test_() ->
     BuggyTimes = ["24:00:01", "23:59:61", "25"],
     ValidDates = ["2000-01-30", "2012-02-29", "0001-12-03", "1492-05", "1492-012", "1492-366", "1493-365"],
     BuggyDates = ["2015-00", "2015-01-00", "1900-366", "1900-02-29", "2016-13-01", "1492-13", "1492-367", "1493-366"],
-    lists:map(fun(T) -> ?_assert(jam:is_valid(jam:process(parse(T)))) end,
+    lists:map(fun(T) -> ?_assert(jam:is_valid(jam:compile(parse(T)))) end,
               ValidTimes)
         ++
-    lists:map(fun(T) -> ?_assert(not jam:is_valid(jam:process(parse(T)))) end,
+    lists:map(fun(T) -> ?_assert(not jam:is_valid(jam:compile(parse(T)))) end,
               BuggyTimes)
         ++
-    lists:map(fun(D) -> ?_assert(jam:is_valid(jam:process(parse(D)))) end,
+    lists:map(fun(D) -> ?_assert(jam:is_valid(jam:compile(parse(D)))) end,
               ValidDates)
         ++
-    lists:map(fun(D) -> ?_assert(not jam:is_valid(jam:process(parse(D)))) end,
+    lists:map(fun(D) -> ?_assert(not jam:is_valid(jam:compile(parse(D)))) end,
               BuggyDates).
 
 -endif.

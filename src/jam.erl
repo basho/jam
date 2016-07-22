@@ -25,7 +25,7 @@
 -include("jam_internal.hrl").
 
 -export([
-         process/1, process/2,
+         compile/1, compile/2,
          round_fractional_seconds/1, offset_round_fractional_seconds/1,
          convert_tz/2, offset_convert_tz/2,
          is_valid/1, is_valid/2, is_complete/1,
@@ -40,9 +40,9 @@
 -endif.
 
 
-%%% Processing
+%%% Compiling
 
-%% The processing step converts the strings captured by parsing into a
+%% The compiling step converts the strings captured by parsing into a
 %% (possibly valid) date and/or time. The resulting tuples will not be
 %% the same as Erlang's date/time tuples because this library permits
 %% fractional seconds and returns time zones as an explicit value for
@@ -53,29 +53,12 @@
 %% accuracy". Similarly, "2016-06" and "2016-W15" are examples of
 %% reduced accuracy dates.
 %%
-%% The processing functions take optional accuracy parameters:
-%%    Minimum accuracy
-%%    Target accuracy
+%% The compiling functions take an optional accuracy parameter,
+%% `minimum_accuracy'.
 %%
 %% If the result is not sufficiently accurate to meet any minimum
 %% accuracy requirement supplied, the atom `incomplete_time' or
 %% `incomplete_date' will be returned instead of a new structure.
-%%
-%% If the resulting date or time does not meet the *target* accuracy,
-%% any missing fields will be filled in with the first valid value.
-%%
-%% For example, "2016-06" is a valid ISO 8601 date string, which will
-%% be returned from the processing step as this tuple by default:
-%%
-%%  `{date, {2016, 6, undefined}}'
-%%
-%% If the target accuracy is `day', that tuple will instead be
-%%
-%%  `{date, {2016, 6, 1}}'
-%%
-%% If the target accuracy is `minute', that tuple will be
-%%
-%%  `{datetime, {date, {2016, 6, 1}}, {time, {0, 0, 0}}}'
 %%
 %% The processing functions also take a default time zone as a
 %% parameter, expressed as ISO 8601-compliant timezone strings ("Z",
@@ -84,10 +67,10 @@
 
 %%% Validation
 
-%% The processing step only exercises as much knowledge about "real"
+%% The compiling step only exercises as much knowledge about "real"
 %% times and dates as is necessary (e.g., knowing what years are leap
 %% years to properly interpret ordinal dates). A time such as "25:15"
-%% is a possible outcome of the parsing and processing steps, so
+%% is a possible outcome of the parsing and compiling steps, so
 %% validation functions are supplied which will return `true' or
 %% `false' if the date/time is legitimate.
 
@@ -182,14 +165,14 @@ maybe_default_timezone(undefined) ->
 maybe_default_timezone(Timezone) ->
     jam_iso8601:parse_tz(Timezone).
 
--spec process(parsed_time()) -> time_record();
+-spec compile(parsed_time()) -> time_record();
              (parsed_datetime()) -> datetime_record();
              (parsed_date()) -> date_record();
              (parsed_timezone()) -> timezone();
              ('undefined') -> 'undefined'.
-%% @equiv process(Record, [])
-process(Record) ->
-    process(Record, []).
+%% @equiv compile(Record, [])
+compile(Record) ->
+    compile(Record, []).
 
 %% @doc Convert the string-based output from a parser into numeric
 %% values.
@@ -198,37 +181,34 @@ process(Record) ->
 %%
 %% <ul>
 %%  <li>`{minimum_accuracy, Accuracy}'</li>
-%%  <li>`{target_accuracy, Accuracy}'</li>
 %%  <li>`{default_timezone, TZstring}'</li>
 %% </ul>
 %%
 %% Accuracy values are atoms ranging from `year' to `second' that
-%% indicate either the granularity that must be captured in the output
-%% of the parser or that which should be added during processing.
+%% indicate the granularity that must be captured in the output
+%% of the parser.
 %%
 %% For example, specifying `minute' as a minimum accuracy means that a
 %% legitimate ISO 8601 string like "2010-05-03T06" could not be
-%% processed and would result in an `incomplete_date' error. Specifying `minute' as a <em>target</em> accuracy means
-%% that a minute value of 0 would be added to the output from the
-%% processing step, while the second would remain undefined.
+%% compiled and would result in an `incomplete_date' error.
 %%
 %% The default timezone string must be ISO 8601-compliant.
--spec process(parsed_time(), list()) -> time_record();
+-spec compile(parsed_time(), list()) -> time_record();
              (parsed_datetime(), list()) -> datetime_record();
              (parsed_date(), list()) -> date_record()|datetime_record();
              (parsed_timezone(), list()) -> timezone();
              ('undefined', list()) -> 'undefined'.
-process(undefined, _Options) ->
+compile(undefined, _Options) ->
     undefined;
-process(#parsed_timezone{}=TZ, _Options) ->
-    process_timezone(TZ);
-process(#parsed_datetime{date=Date, time=Time}, Options) ->
+compile(#parsed_timezone{}=TZ, _Options) ->
+    compile_timezone(TZ);
+compile(#parsed_datetime{date=Date, time=Time}, Options) ->
     check_accuracy(preprocess(Date, Options), preprocess(Time, Options), accuracy(proplists:get_value(minimum_accuracy, Options)), Options);
-process(#parsed_calendar{}=Date, Options) ->
+compile(#parsed_calendar{}=Date, Options) ->
     check_accuracy(preprocess(Date, Options), undefined, accuracy(proplists:get_value(minimum_accuracy, Options)), Options);
-process(#parsed_ordinal{}=Date, Options) ->
+compile(#parsed_ordinal{}=Date, Options) ->
     check_accuracy(preprocess(Date, Options), undefined, accuracy(proplists:get_value(minimum_accuracy, Options)), Options);
-process(#parsed_time{}=Time, Options) ->
+compile(#parsed_time{}=Time, Options) ->
     check_accuracy(undefined, preprocess(Time, Options), accuracy(proplists:get_value(minimum_accuracy, Options)), Options).
 
 %% There are two accuracy options: minimum accuracy and target
@@ -326,7 +306,7 @@ populate_target(Date, #parsed_time{second=undefined,
 populate_target(Date, Time, _Accuracy) ->
     populate_target(Date, Time, undefined).
 
--spec round_fractional_seconds(processed_record()) -> processed_record();
+-spec round_fractional_seconds(compiled_record()) -> compiled_record();
                               ('undefined') -> 'undefined'.
 round_fractional_seconds(Record) ->
     {_Adjust, NewRecord} = offset_round_fractional_seconds(Record),
@@ -338,8 +318,8 @@ round_fractional_seconds(Record) ->
 %%
 %% If a datetime tuple is provided, the date element will be
 %% incremented in the return value if applicable.
--spec offset_round_fractional_seconds(processed_record()) ->
-                                             {0|1, processed_record()};
+-spec offset_round_fractional_seconds(compiled_record()) ->
+                                             {0|1, compiled_record()};
                                      ('undefined') -> {0, 'undefined'}.
 offset_round_fractional_seconds(undefined) ->
     {0, undefined};
@@ -356,13 +336,13 @@ offset_round_fractional_seconds(#datetime{date=Date, time=Time}) ->
 offset_round_fractional_seconds(DateTime) ->
     {0, DateTime}.
 
--spec convert_tz(processed_record(), string()) -> processed_record();
+-spec convert_tz(compiled_record(), string()) -> compiled_record();
                 ('undefined', string()) -> 'undefined'.
 convert_tz(Record, TZ) ->
     {_Adjust, NewRecord} = offset_convert_tz(Record, TZ),
     NewRecord.
 
--spec offset_convert_tz(processed_record(), string()) -> {-1|0|1, processed_record()};
+-spec offset_convert_tz(compiled_record(), string()) -> {-1|0|1, compiled_record()};
                 ('undefined', string()) -> {0, 'undefined'}.
 %% Like other `offset_` functions this will return a tuple with an
 %% initial value that indicates whether the date changed as a result
@@ -383,18 +363,18 @@ offset_convert_tz(#datetime{date=Date, time=Time}, NewTz) ->
 offset_convert_tz(#time{timezone=undefined}, _NewTz) ->
     {0, undefined};
 offset_convert_tz(#time{}=Time, NewTz) ->
-    convert_processed_tz(Time, process(jam_iso8601:parse_tz(NewTz))).
+    convert_compiled_tz(Time, compile(jam_iso8601:parse_tz(NewTz))).
 
-convert_processed_tz(#time{timezone=TzRec}=Time, TzRec) ->
+convert_compiled_tz(#time{timezone=TzRec}=Time, TzRec) ->
     {0, Time};
-convert_processed_tz(#time{timezone=#timezone{hours=AddH, minutes=AddM}}=Time,
+convert_compiled_tz(#time{timezone=#timezone{hours=AddH, minutes=AddM}}=Time,
                      #timezone{label="Z"}=NewTz) ->
     %% The old timezone has integer values expressed as values to add
     %% to reach UTC, so this case is simple
     {DateAdj, NewTime} =
         jam_math:add_time(jam_erlang:to_time(Time), {AddH, AddM}),
     {DateAdj, jam_erlang:tuple_to_record(Time#time{timezone=NewTz}, NewTime)};
-convert_processed_tz(#time{timezone=#timezone{hours=OldAddH, minutes=OldAddM}}=Time,
+convert_compiled_tz(#time{timezone=#timezone{hours=OldAddH, minutes=OldAddM}}=Time,
                      #timezone{hours=NewAddH, minutes=NewAddM}=NewTz) ->
     %% We convert to UTC first, then to the new timezone by inverting
     %% the sign on the values to add.
@@ -407,25 +387,25 @@ convert_processed_tz(#time{timezone=#timezone{hours=OldAddH, minutes=OldAddM}}=T
 
 
 complete_processing(undefined, Time) ->
-    process_time(Time);
+    compile_time(Time);
 complete_processing(Date, undefined) ->
-    process_date(Date);
+    compile_date(Date);
 complete_processing(Date, Time) ->
-    #datetime{date=process_date(Date),
-              time=process_time(Time)}.
+    #datetime{date=compile_date(Date),
+              time=compile_time(Time)}.
 
-process_date(#parsed_calendar{year=Year, month=Month, day=Day}) ->
+compile_date(#parsed_calendar{year=Year, month=Month, day=Day}) ->
     jam_erlang:tuple_to_record(#date{}, {l2i(Year), l2i(Month), l2i(Day)});
-process_date(Date) ->
+compile_date(Date) ->
     Date.
 
-process_time(undefined) ->
+compile_time(undefined) ->
     undefined;
-process_time(#parsed_time{fraction=undefined, timezone=TZ}=Time) ->
+compile_time(#parsed_time{fraction=undefined, timezone=TZ}=Time) ->
     {Hour, Minute, Second} = jam_erlang:to_time(Time),
-    jam_erlang:tuple_to_record(#time{timezone=process_timezone(TZ)},
+    jam_erlang:tuple_to_record(#time{timezone=compile_timezone(TZ)},
                                {l2i(Hour), l2i(Minute), l2i(Second)});
-process_time(#parsed_time{fraction=#parsed_fraction{value=Fractional},
+compile_time(#parsed_time{fraction=#parsed_fraction{value=Fractional},
                           timezone=TZ}=Time) ->
     {Hour, Minute, Second} = jam_erlang:to_time(Time),
     %% Figure out what to do with the fractional value. Whatever is
@@ -435,7 +415,7 @@ process_time(#parsed_time{fraction=#parsed_fraction{value=Fractional},
     {Sec, FracRemainder2} = maybe_fractional(Second, FracRemainder),
     jam_erlang:tuple_to_record(
       #time{fraction=jam_erlang:tuple_to_record(#fraction{}, FracRemainder2),
-            timezone=process_timezone(TZ)},
+            timezone=compile_timezone(TZ)},
       {l2i(Hour), Min, Sec}).
 
 utc_timezone_record() ->
@@ -444,11 +424,11 @@ utc_timezone_record() ->
 %% We want the integer `timezone' fields to represent adjustments
 %% necessary to convert to UTC, so India, with a +05:30 time zone,
 %% will map to `{timezone, "+05:30", -5, -30}' or `{timezone, "+0530", -5, -30}'.
-process_timezone(undefined) ->
+compile_timezone(undefined) ->
     undefined;
-process_timezone(#parsed_timezone{label="Z"}) ->
+compile_timezone(#parsed_timezone{label="Z"}) ->
     utc_timezone_record();
-process_timezone(#parsed_timezone{label=TZ, hours=TZH, minutes=TZM}) ->
+compile_timezone(#parsed_timezone{label=TZ, hours=TZH, minutes=TZM}) ->
     HourOffset = -l2i(TZH),
     #timezone{label=TZ, hours=HourOffset,
               minutes=timezone_minute_offset(HourOffset, TZM)}.
@@ -473,7 +453,7 @@ maybe_fractional(Value, Frac) ->
 time_from_scratch(Hour, Minute, Second) ->
     #parsed_time{hour=Hour, minute=Minute, second=Second}.
 
--spec is_complete(processed_record()|parsed_record()) -> boolean().
+-spec is_complete(compiled_record()|parsed_record()) -> boolean().
 is_complete(#datetime{date=Date, time=Time}) ->
     is_complete(Date) andalso is_complete(Time);
 is_complete(#parsed_datetime{date=Date, time=Time}) ->
@@ -497,11 +477,11 @@ is_complete(#parsed_calendar{day=undefined}) ->
 is_complete(#parsed_calendar{}) ->
     true.
 
--spec is_valid(processed_record()|timezone()|'undefined') -> boolean().
+-spec is_valid(compiled_record()|timezone()|'undefined') -> boolean().
 is_valid(Record) ->
     is_valid(Record, []).
 
--spec is_valid(processed_record()|timezone()|'undefined', list()) -> boolean().
+-spec is_valid(compiled_record()|timezone()|'undefined', list()) -> boolean().
 is_valid(undefined, _Options) ->
     false;
 is_valid(#datetime{date=Date, time=Time}, Options) ->
