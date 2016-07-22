@@ -58,6 +58,18 @@ Thus, a second value of `60` is considered valid by the validation
 functions and is converted to `00` seconds in the following minute
 during normalization.
 
+### Expansion
+
+ISO 8601 allows for incomplete date/time strings, and while we'll need
+a complete date/time for most conversions, in some cases we need to
+know that the incoming string was incomplete, so expansion of an
+incomplete date/time record is a distinct step in the processing
+timeline.
+
+The values added to expand an incomplete record are the lower bounds
+for the appropriate fields, so 1 for month or day, 0 for any time
+field.
+
 ### Translation
 
 Dates and times can be converted to alternative time zones, to ISO
@@ -97,27 +109,38 @@ arguments, `jam:offset_normalize/1`,
 `jam:offset_round_fractional_seconds/1` and `jam:offset_convert_tz/2`
 return a two-tuple, with the first value an integer expressing whether
 or not a date adjustment resulted. The non-`offset_` version of each
-function drops the date adjustment in favor of a single return value
+function drops the date adjustment in favor of a single return value, and we'll use those here.
 
 ```erlang
-1> {_, DT1} = jam:normalize(jam:compile(jam_iso8601:parse("20150630T23:59:60.738Z"))).
-{1,
- {datetime,{date,2015,7,1},
-           {time,0,0,0,
-                 {fraction,0.738,3},
-                 undefined,
-                 {timezone,"Z",0,0}}}}
-2> {_, DT2} = jam:round_fractional_seconds(DT1).
-{0,
- {datetime,{date,2015,7,1},
-           {time,0,0,1,undefined,undefined,{timezone,"Z",0,0}}}}
-3> {_, DT3} = jam:convert_tz(DT2, "-07:30").
-{-1,
- {datetime,{date,2015,6,30},
-           {time,16,30,1,undefined,undefined,
-                 {timezone,"-07:30",7,30}}}}
+1> DT1 = jam:normalize(jam:compile(jam_iso8601:parse("20150630T23:59:60.738Z"))).
+{datetime,{date,2015,7,1},
+          {time,0,0,0,
+                {fraction,0.738,3},
+                undefined,
+                {timezone,"Z",0,0}}}
+2> DT2 = jam:round_fractional_seconds(DT1).
+{datetime,{date,2015,7,1},
+          {time,0,0,1,undefined,undefined,{timezone,"Z",0,0}}}
+3> DT3 = jam:convert_tz(DT2, "-07:30").
+{datetime,{date,2015,6,30},
+          {time,16,30,1,undefined,undefined,
+                {timezone,"-07:30",7,30}}}
 4> jam_iso8601:to_string(DT3).
 "2015-06-30T16:30:01-07:30"
+```
+
+Here's an example of expanding an incomplete date. Note that if we specify a target for our expansion of less than a day, the original date record becomes a datetime so we can expand the time as well.
+
+```erlang
+2> DT = jam:compile(jam_iso8601:parse("2016")).
+#date{year = 2016,month = undefined,day = undefined}
+3> jam:expand(DT, day).
+#date{year = 2016,month = 1,day = 1}
+4> jam:expand(DT, minute).
+#datetime{date = #date{year = 2016,month = 1,day = 1},
+          time = #time{hour = 0,minute = 0,second = undefined,
+                       fraction = undefined,subsecond = undefined,
+                       timezone = undefined}}
 ```
 
 Dates or times can be managed independently. This snippet also

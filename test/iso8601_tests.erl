@@ -138,9 +138,10 @@ non_roundtrip_string_test() ->
                    jam:compile(jam_iso8601:parse("23:00+00")), [{format, basic}, {datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])),
     ?assertEqual("2016-06-23T23:00Z",
                  jam_iso8601:to_string(
-                   jam:compile(
-                     jam_iso8601:parse("20160623T23Z"),
-                     [{target_accuracy, minute}]),
+                   jam:expand(
+                     jam:compile(
+                       jam_iso8601:parse("20160623T23Z")
+                      ), minute),
                    [{datetime_separator, t}, {t_prefix, true}, {decimal_mark, comma},{z, true}])).
 
 
@@ -223,7 +224,7 @@ timezones_test_() ->
               end, ?DATETIMES).
 
 map_date(State, Str) ->
-    jam:to_epoch(jam:compile(jam_iso8601:parse(State, Str), [{target_accuracy, second}])).
+    jam:to_epoch(jam:expand(jam:compile(jam_iso8601:parse(State, Str)), second)).
 
 map_frac(Str) ->
     %% We test with millisecond epoch values, so the precision
@@ -234,7 +235,7 @@ map_utc_time(Str) ->
     %% Arbitrary date
     Date = {2001, 12, 03},
     Time = jam_iso8601:parse(Str),
-    ProcessedTime = jam:compile(Time, [{target_accuracy, second}]),
+    ProcessedTime = jam:expand(jam:compile(Time), second),
 
     %% If this results in a changed date, we need to add another test
     %% utility function to increment our arbitrary date
@@ -245,12 +246,12 @@ map_utc_time(Str) ->
         universal_datetime_TO_utc_seconds({Date, {0, 0, 0}}).
 
 map_datetime(Str) ->
-    Processed = jam:compile(jam_iso8601:parse(Str), [{target_accuracy, second}]),
+    Processed = jam:expand(jam:compile(jam_iso8601:parse(Str)), second),
     Rounded = jam:round_fractional_seconds(Processed),
     jam:to_epoch(Rounded).
 
 map_utc_datetime(Str) ->
-    Processed = jam:compile(jam_iso8601:parse(Str), [{target_accuracy, second}]),
+    Processed = jam:expand(jam:compile(jam_iso8601:parse(Str)), second),
     DateTime = jam:round_fractional_seconds(Processed),
     UTCDateTime = jam:convert_tz(DateTime, "+00:00"),
     jam:to_epoch(UTCDateTime).

@@ -27,6 +27,7 @@
 -export([
          compile/1, compile/2,
          round_fractional_seconds/1, offset_round_fractional_seconds/1,
+         expand/2,
          convert_tz/2, offset_convert_tz/2,
          is_valid/1, is_valid/2, is_complete/1,
          normalize/1, offset_normalize/1,
@@ -203,108 +204,99 @@ compile(undefined, _Options) ->
 compile(#parsed_timezone{}=TZ, _Options) ->
     compile_timezone(TZ);
 compile(#parsed_datetime{date=Date, time=Time}, Options) ->
-    check_accuracy(preprocess(Date, Options), preprocess(Time, Options), accuracy(proplists:get_value(minimum_accuracy, Options)), Options);
+    finish_compile(check_accuracy(preprocess(Date, Options), preprocess(Time, Options), accuracy(proplists:get_value(minimum_accuracy, Options))));
 compile(#parsed_calendar{}=Date, Options) ->
-    check_accuracy(preprocess(Date, Options), undefined, accuracy(proplists:get_value(minimum_accuracy, Options)), Options);
+    finish_compile(check_accuracy(preprocess(Date, Options), undefined, accuracy(proplists:get_value(minimum_accuracy, Options))));
 compile(#parsed_ordinal{}=Date, Options) ->
-    check_accuracy(preprocess(Date, Options), undefined, accuracy(proplists:get_value(minimum_accuracy, Options)), Options);
+    finish_compile(check_accuracy(preprocess(Date, Options), undefined, accuracy(proplists:get_value(minimum_accuracy, Options))));
 compile(#parsed_time{}=Time, Options) ->
-    check_accuracy(undefined, preprocess(Time, Options), accuracy(proplists:get_value(minimum_accuracy, Options)), Options).
+    finish_compile(check_accuracy(undefined, preprocess(Time, Options), accuracy(proplists:get_value(minimum_accuracy, Options)))).
 
-%% There are two accuracy options: minimum accuracy and target
-%% accuracy.
-%%
-%% Minimum: if this date/time (after parsing) was not specified to the
-%% desired level of accuracy, return an error
-%%
-%% Target: if this date/time (after parsing) was not specified to the
-%% desired level of accuracy, set lower bounds values (1 for
-%% month/day, 0 for hour/minute/second).
-%%
 %% `check_accuracy/4' will make certain any minimum accuracy is met
-%% and then invoke `populate_target/3' to flesh out the data
-%% structures to match the target.
-check_accuracy(Date, Time, undefined, Options) ->
+check_accuracy(Date, Time, undefined) ->
     %% 3rd parameter is minimum accuracy. If there is no minimum
     %% specified, we don't need to check anything here
-    populate_target(Date, Time, accuracy(proplists:get_value(target_accuracy, Options)));
-check_accuracy(_Date, undefined, Minimum, _Options) when Minimum < ?DAY_ACCURACY ->
+    {Date, Time};
+check_accuracy(_Date, undefined, Minimum) when Minimum < ?DAY_ACCURACY ->
     %% If we don't have a time, and our minimum accuracy is time-related, bail
     incomplete_time;
-check_accuracy(#parsed_calendar{month=undefined}, _Time, Minimum, _Options)
+check_accuracy(#parsed_calendar{month=undefined}, _Time, Minimum)
   when Minimum < ?YEAR_ACCURACY ->
     incomplete_date;
-check_accuracy(#parsed_calendar{day=undefined}, _Time, Minimum, _Options)
+check_accuracy(#parsed_calendar{day=undefined}, _Time, Minimum)
   when Minimum < ?MONTH_ACCURACY ->
     %% Perhaps we should respond `incomplete_time' if the minimum
     %% accuracy is hour/minute/second and we have an incomplete date
     %% but I prefer this
     incomplete_date;
-check_accuracy(_Date, #parsed_time{minute=undefined, fraction=undefined}, Minimum, _Options)
+check_accuracy(_Date, #parsed_time{minute=undefined, fraction=undefined}, Minimum)
   when Minimum < ?HOUR_ACCURACY ->
     %% If we have a fractional time, we'll consider it good enough to
     %% make minute/second accuracy, so this clause only triggers on
     %% undefined fractions
     incomplete_time;
-check_accuracy(_Date, #parsed_time{second=undefined, fraction=undefined}, Minimum, _Options)
+check_accuracy(_Date, #parsed_time{second=undefined, fraction=undefined}, Minimum)
   when Minimum < ?MINUTE_ACCURACY ->
     %% If we have a defined fraction, we'll consider it good enough to
     %% make minute/second accuracy, so this clause only triggers on
     %% undefined fractions
     incomplete_time;
-check_accuracy(Date, Time, _Minimum, Options) ->
-    %% Proceed to populating target accuracy
-    check_accuracy(Date, Time, undefined, Options).
+check_accuracy(Date, Time, _Minimum) ->
+    {Date, Time}.
 
+%% All errors are atoms; rather than create a partial datetime record
+%% with an error atom nested inside, make certain we return the error
+%% directly.
+expand_to_datetime(Date, _Time) when is_atom(Date) ->
+    Date;
+expand_to_datetime(_Date, Time) when is_atom(Time) ->
+    Time;
+expand_to_datetime(Date, Time) ->
+    #datetime{date=Date, time=Time}.
 
-%% Remember: it is not possible to parse and then process a time on an
-%% incomplete date, so we can skip quite a few scenarios. And
-%% `parsed_ordinal' values have already been converted to full
-%% calendar dates, so they will fall through to `complete_processing/2'
-populate_target(Date, Time, undefined) ->
-    %% No target, nothing to populate
-    complete_processing(Date, Time);
-populate_target(undefined, _Time, Target) when Target > ?HOUR_ACCURACY ->
-    %% How can we populate an entirely missing date? 1970-01-01? We'll
-    %% return an `incomplete_date' error
+expand(undefined, _Target) ->
+    undefined;
+expand(Record, Target) when is_atom(Target) ->
+    expand_2(Record, accuracy(Target)).
+
+%% Names are hard. Step 2 of the expansion process forces a datetime
+%% structure when necessary, and regardless continues to step 3.
+expand_2(#date{}=Date, Target) when Target < ?DAY_ACCURACY ->
+    %% Must create a time record for time-based expansion requirements
+    expand_to_datetime(expand_3(Date, Target), expand_3(#time{}, Target));
+expand_2(#datetime{date=Date, time=undefined}, Target) when Target < ?DAY_ACCURACY ->
+    %% Defer to the previous function clause to create a new time record
+    expand_2(Date, Target);
+expand_2(#datetime{date=Date, time=Time}, Target) ->
+    expand_to_datetime(expand_3(Date, Target), expand_3(Time, Target));
+expand_2(Record, Target) ->
+    expand_3(Record, Target).
+
+%% Step 3 of the expansion process: populate lower bound values to
+%% meet the desired accuracy. We only need concern ourselves with date
+%% or time records; step 2 will make handle any datetime records.
+expand_3(#date{year=undefined}, _Target) ->
     incomplete_date;
-populate_target(Date, Time, ?YEAR_ACCURACY) ->
-    %% If we have a date, year is guaranteed. Proceed
-    populate_target(Date, Time, undefined);
-populate_target(#parsed_calendar{month=undefined}=Date, Time, ?MONTH_ACCURACY) ->
-    populate_target(Date#parsed_calendar{month="01"}, Time, undefined);
-populate_target(#parsed_calendar{day=undefined}=Date, Time, ?DAY_ACCURACY) ->
-    populate_target(Date#parsed_calendar{day="01"}, Time, ?MONTH_ACCURACY);
-populate_target(#parsed_calendar{month=undefined, day=undefined}=Date, Time,
-                Accuracy) when Accuracy < ?DAY_ACCURACY ->
-    populate_target(Date#parsed_calendar{month="01", day="01"}, Time, Accuracy);
-populate_target(#parsed_calendar{day=undefined}=Date, Time,
-                Accuracy) when Accuracy < ?DAY_ACCURACY ->
-    populate_target(Date#parsed_calendar{day="01"}, Time, Accuracy);
-populate_target(Date, _Time=undefined, ?HOUR_ACCURACY) ->
-    populate_target(Date, time_from_scratch("00", undefined, undefined), undefined);
-populate_target(Date, _Time=undefined, ?MINUTE_ACCURACY) ->
-    populate_target(Date, time_from_scratch("00", "00", undefined), undefined);
-populate_target(Date, _Time=undefined, ?SECOND_ACCURACY) ->
-    populate_target(Date, time_from_scratch("00", "00", "00"), undefined);
-%% Remember, fractional hours exist. If we have a fraction of an hour,
-%% consider any accuracy less than an hour to be pre-populated
-populate_target(Date, #parsed_time{minute=undefined,
-                                   second=undefined,
-                                   fraction=undefined}=Time,
-                ?MINUTE_ACCURACY) ->
-    populate_target(Date, Time#parsed_time{minute="00"}, undefined);
-populate_target(Date, #parsed_time{minute=undefined,
-                                   second=undefined,
-                                   fraction=undefined}=Time,
-                ?SECOND_ACCURACY) ->
-    populate_target(Date, Time#parsed_time{minute="00",second="00"}, undefined);
-populate_target(Date, #parsed_time{second=undefined,
-                                   fraction=undefined}=Time,
-                ?SECOND_ACCURACY) ->
-    populate_target(Date, Time#parsed_time{second="00"}, undefined);
-populate_target(Date, Time, _Accuracy) ->
-    populate_target(Date, Time, undefined).
+expand_3(#date{}=Date, ?YEAR_ACCURACY) ->
+    Date;
+expand_3(#date{month=undefined}=Date, Target) when Target < ?YEAR_ACCURACY->
+    expand_3(Date#date{month=1}, Target);
+expand_3(#date{day=undefined}=Date, Target) when Target < ?MONTH_ACCURACY ->
+    Date#date{day=1};
+
+%% We will consider a fractional value to satisfy any expansion target
+expand_3(#time{fraction=Fraction}=Time, _Target) when Fraction /= undefined ->
+    Time;
+
+expand_3(#time{hour=undefined}=Time, Target) when Target =< ?HOUR_ACCURACY ->
+    expand_3(Time#time{hour=0}, Target);
+expand_3(#time{minute=undefined}=Time, Target) when Target =< ?MINUTE_ACCURACY ->
+    expand_3(Time#time{minute=0}, Target);
+expand_3(#time{second=undefined}=Time, Target) when Target =< ?SECOND_ACCURACY ->
+    expand_3(Time#time{second=0}, Target);
+
+expand_3(Record, _Target) ->
+    Record.
 
 -spec round_fractional_seconds(compiled_record()) -> compiled_record();
                               ('undefined') -> 'undefined'.
@@ -386,11 +378,13 @@ convert_compiled_tz(#time{timezone=#timezone{hours=OldAddH, minutes=OldAddM}}=Ti
 
 
 
-complete_processing(undefined, Time) ->
+finish_compile(Error) when is_atom(Error) ->
+    Error;
+finish_compile({undefined, Time}) ->
     compile_time(Time);
-complete_processing(Date, undefined) ->
+finish_compile({Date, undefined}) ->
     compile_date(Date);
-complete_processing(Date, Time) ->
+finish_compile({Date, Time}) ->
     #datetime{date=compile_date(Date),
               time=compile_time(Time)}.
 
@@ -448,10 +442,6 @@ maybe_fractional(undefined, {Frac, Precision}) ->
     {IntUnits, Remainder};
 maybe_fractional(Value, Frac) ->
     {list_to_integer(Value), Frac}.
-
-%% Used during population of target accuracies
-time_from_scratch(Hour, Minute, Second) ->
-    #parsed_time{hour=Hour, minute=Minute, second=Second}.
 
 -spec is_complete(compiled_record()|parsed_record()) -> boolean().
 is_complete(#datetime{date=Date, time=Time}) ->
