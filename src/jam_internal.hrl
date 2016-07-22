@@ -5,7 +5,7 @@
 -define(GREGORIAN_MAGIC, 62167219200).
 
 -type maybe_string() :: string() | 'undefined'.
--type precision() :: pos_integer().
+-type precision() :: non_neg_integer().
 
 %% Different parsers may populate fraction or subsecond, but not both
 %% at the same time.
@@ -95,7 +95,7 @@
 -type timezone() :: #timezone{}.
 
 -record(fraction, {
-          value :: number(),
+          value :: float(),
           precision :: precision()
          }
        ).

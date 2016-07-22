@@ -294,29 +294,10 @@ match_timezone_re({match, [TZ, TZH, TZM]}) ->
 %%   {datetime_separator, t|space} (t is default)
 %%   {decimal_mark, comma|period} (period is default)
 %%   {z, true|false} (true is default, false means use "+00:00" or "+0000")
-%%   {precision, <power>} - used for epoch conversions, indicate how
-%%   much of the integer is sub-second (power of 10, 10^0 means the
-%%   value is seconds, 10^3 means milliseconds)
-
-render_remainder(ISOStr, 0, _Precision, _Options) ->
-    ISOStr ++ "Z";
-render_remainder(ISOStr, Remainder, Precision, Options) ->
-    ISOStr ++
-        render_fraction(#fraction{value=Remainder, precision=Precision}, Options) ++ "Z".
-
-drop_fractional_seconds(Integer, Precision) ->
-    Divisor = trunc(math:pow(10, Precision)),
-    {Integer div Divisor, Integer rem Divisor}.
 
 -spec to_string(processed_record()|calendar:datetime()|non_neg_integer()) -> string().
 to_string(Record) ->
     to_string(Record, [{format, extended}]).
-
-to_string(Epoch, Options) when is_integer(Epoch) ->
-    Precision = proplists:get_value(precision, Options, 1),
-    {EpochSeconds, Remainder} = drop_fractional_seconds(Epoch, Precision),
-    ErlangDateTime = calendar:gregorian_seconds_to_datetime(EpochSeconds + ?GREGORIAN_MAGIC),
-    render_remainder(to_string(ErlangDateTime, Options), Remainder, Precision, Options);
 
 to_string({{_Year, _Month, _Day}=Date, {_Hour, _Minute, _Second}=Time}, Options) ->
     to_string(#datetime{date=jam_erlang:tuple_to_record(#date{}, Date),
@@ -401,8 +382,6 @@ decimal_mark(false) ->
 render_fraction(undefined, _Options) ->
     "";
 render_fraction(#fraction{value=0.0}, _Options) ->
-    "";
-render_fraction(#fraction{value=0}, _Options) ->
     "";
 render_fraction(#fraction{value=Fraction, precision=Precision}, Options) ->
     AsInt = drop_zeroes(round(Fraction * math:pow(10, Precision))),

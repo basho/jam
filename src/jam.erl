@@ -30,6 +30,7 @@
          convert_tz/2,
          is_valid/1, is_valid/2, is_complete/1,
          normalize/1, to_epoch/1, to_epoch/2,
+         from_epoch/1, from_epoch/2,
          tz_offset/1]).
 
 -ifdef(TEST).
@@ -634,11 +635,35 @@ to_epoch(#datetime{}=DateTime, Precision) ->
     check_complete_before_conversion(
       is_complete(DateTime),
       DateTime,
-      precision_to_mult(Precision)
+      trunc(precision_to_mult(Precision))
      ).
 
+split_epoch(Integer, Precision) ->
+    Divisor = trunc(precision_to_mult(Precision)),
+    {Integer div Divisor, Integer rem Divisor}.
+
+-spec from_epoch(non_neg_integer()) -> datetime_record().
+from_epoch(Epoch) ->
+    from_epoch(Epoch, 0).
+
+-spec from_epoch(non_neg_integer(), non_neg_integer()) -> datetime_record().
+from_epoch(Epoch, Precision) ->
+    {EpochSeconds, Remainder} = split_epoch(Epoch, Precision),
+    Fraction = #fraction{value=Remainder / precision_to_mult(Precision), precision=Precision},
+    TZ = utc_timezone_record(),
+    {Date, Time} = utc_seconds_to_universal_datetime(EpochSeconds),
+    #datetime{
+       date=jam_erlang:tuple_to_record(#date{}, Date),
+       time=jam_erlang:tuple_to_record(#time{fraction=Fraction,
+                                             timezone=TZ}, Time)
+      }.
+
+utc_seconds_to_universal_datetime(Seconds) ->
+    calendar:gregorian_seconds_to_datetime(Seconds +
+                                               ?GREGORIAN_MAGIC).
+
 precision_to_mult(Precision) ->
-    trunc(math:pow(10, Precision)).
+    math:pow(10, Precision).
 
 check_complete_before_conversion(false, _DateTime, _Precision) ->
     incomplete_datetime;
@@ -726,5 +751,17 @@ tz_offset_test_() ->
     lists:map(fun({TZ, Offset}) ->
                       ?_assertEqual(Offset, tz_offset(TZ))
               end, TZs).
+
+-define(EPOCHS,
+        [
+         {1466691033125, 3},
+         {1466691033, 0}
+        ]).
+
+roundtrip_epoch_test_() ->
+    lists:map(fun({Epoch, Precision}) ->
+                      ?_assertEqual(Epoch,
+                                    to_epoch(from_epoch(Epoch, Precision), Precision))
+              end, ?EPOCHS).
 
 -endif.
