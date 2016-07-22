@@ -23,19 +23,19 @@ Yet to be supported:
 * Date/time intervals
 * Week dates
 
-### Processing
+### Compilation
 
-The processing step converts the strings captured by parsing into a
+The compilation step converts the strings captured by parsing into a
 (possibly valid) date and/or time. The resulting tuples will not be
 the same as Erlang's date/time tuples because this library permits
 fractional seconds, "incomplete" dates and times, and time zones.
 
 ### Validation
 
-The processing step only exercises as much knowledge about "real"
+The compilation step only exercises as much knowledge about "real"
 times and dates as is necessary (e.g., knowing what years are leap
 years to properly interpret ordinal dates). A time such as "25:15" is
-a possible outcome of the parsing and processing steps, so validation
+a possible outcome of the parsing and compilation steps, so validation
 functions are supplied.
 
 ### Normalization
@@ -73,7 +73,7 @@ values).
 {parsed_datetime,{parsed_calendar,"1985","04","23"},
                  {parsed_time,"13","15","57",undefined,undefined,
                               {parsed_timezone,"Z",undefined,undefined}}}
-2> jam:process(v(-1)).
+2> jam:compile(v(-1)).
 {datetime,{date,1985,4,23},
           {time,13,15,57,undefined,undefined,{timezone,"Z",0,0}}}
 3> jam:normalize(v(-1)).
@@ -100,7 +100,7 @@ or not a date adjustment resulted. The non-`offset_` version of each
 function drops the date adjustment in favor of a single return value
 
 ```erlang
-1> {_, DT1} = jam:normalize(jam:process(jam_iso8601:parse("20150630T23:59:60.738Z"))).
+1> {_, DT1} = jam:normalize(jam:compile(jam_iso8601:parse("20150630T23:59:60.738Z"))).
 {1,
  {datetime,{date,2015,7,1},
            {time,0,0,0,
