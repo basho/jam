@@ -127,9 +127,6 @@
 %% fractional times are supported, it will be possible to express
 %% millisecond (or larger, or smaller) values in time strings.
 
-%% Seconds between year 0 and 1970. Unsurprisingly, a pretty big number.
--define(GREGORIAN_MAGIC, 62167219200).
-
 %% list_to_integer (but leave `undefined' intact)
 l2i(undefined) ->
     undefined;

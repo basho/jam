@@ -1,6 +1,9 @@
 -ifndef(JAM_INT_HRL).
 -define(JAM_INT_HRL, included).
 
+%% Seconds between year 0 and 1970. Unsurprisingly, a pretty big number.
+-define(GREGORIAN_MAGIC, 62167219200).
+
 -type maybe_string() :: string() | 'undefined'.
 -type precision() :: pos_integer().
 
