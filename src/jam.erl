@@ -32,7 +32,7 @@
          normalize/1, offset_normalize/1,
          to_epoch/1, to_epoch/2,
          from_epoch/1, from_epoch/2,
-         tz_offset/1]).
+         tz_to_seconds/1]).
 
 -ifdef(TEST).
 -compile(export_all).
@@ -555,7 +555,7 @@ is_valid_time(#time{}=Time, Options) ->
 %% +1400. Since politicians love to mess with this, going to treat
 %% 1500 as an absolute maximum and hope for the best.
 is_valid_timezone(#timezone{}=TZ, _Options) ->
-    abs(tz_offset(TZ)) =< 15 * 3600.
+    abs(tz_to_seconds(TZ)) =< 15 * 3600.
 
 -spec normalize('undefined') -> 'undefined';
                (date_record()) -> date_record();
@@ -739,8 +739,8 @@ wrap(Int, {_Min, _Max}) ->
 %% because the timezone record tracks the adjustment necessary to
 %% convert to UTC, while users/developers will expect the same sign as
 %% the original string
--spec tz_offset(timezone()) -> integer().
-tz_offset(#timezone{hours=Hours, minutes=Minutes}) ->
+-spec tz_to_seconds(timezone()) -> integer().
+tz_to_seconds(#timezone{hours=Hours, minutes=Minutes}) ->
     -(Hours*3600 + Minutes*60).
 
 -ifdef(TEST).
@@ -791,7 +791,7 @@ tz_offset_test_() ->
            {#timezone{hours=0, minutes=0}, 0}
           ],
     lists:map(fun({TZ, Offset}) ->
-                      ?_assertEqual(Offset, tz_offset(TZ))
+                      ?_assertEqual(Offset, tz_to_seconds(TZ))
               end, TZs).
 
 -define(EPOCHS,
