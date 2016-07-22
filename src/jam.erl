@@ -683,8 +683,7 @@ from_epoch(Epoch, Precision) ->
       }.
 
 utc_seconds_to_universal_datetime(Seconds) ->
-    calendar:gregorian_seconds_to_datetime(Seconds +
-                                               ?GREGORIAN_MAGIC).
+    calendar:gregorian_seconds_to_datetime(Seconds + ?GREGORIAN_MAGIC).
 
 precision_to_mult(Precision) ->
     math:pow(10, Precision).
