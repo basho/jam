@@ -95,7 +95,7 @@
 -type timezone() :: #timezone{}.
 
 -record(fraction, {
-          value :: float(),
+          value :: number(),
           precision :: precision()
          }
        ).

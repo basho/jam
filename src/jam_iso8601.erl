@@ -402,6 +402,8 @@ render_fraction(undefined, _Options) ->
     "";
 render_fraction(#fraction{value=0.0}, _Options) ->
     "";
+render_fraction(#fraction{value=0}, _Options) ->
+    "";
 render_fraction(#fraction{value=Fraction, precision=Precision}, Options) ->
     AsInt = drop_zeroes(round(Fraction * math:pow(10, Precision))),
     AsList = integer_to_list(AsInt),
