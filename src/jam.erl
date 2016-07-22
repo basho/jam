@@ -618,8 +618,11 @@ calculate_ordinal_date_post_feb(Year, Day) ->
               (time_record()) -> missing_date;
               (datetime_record()) -> integer().
 to_epoch(Record) ->
-    to_epoch(Record, 1).
+    to_epoch(Record, 0).
 
+%% 2nd argument is the power of 10 reflecting subsecond accuracy. For
+%% example, if nanosecond values are required, the epoch value would
+%% have to be multiplied by 10^9, so the argument would be 9.
 -spec to_epoch(date_record(), integer()) -> missing_time;
               (time_record(), integer()) -> missing_date;
               (datetime_record(), integer()) -> integer().
@@ -628,7 +631,14 @@ to_epoch(#date{}, _Precision) ->
 to_epoch(#time{}, _Precision) ->
     missing_date;
 to_epoch(#datetime{}=DateTime, Precision) ->
-    check_complete_before_conversion(is_complete(DateTime), DateTime, Precision).
+    check_complete_before_conversion(
+      is_complete(DateTime),
+      DateTime,
+      precision_to_mult(Precision)
+     ).
+
+precision_to_mult(Precision) ->
+    trunc(math:pow(10, Precision)).
 
 check_complete_before_conversion(false, _DateTime, _Precision) ->
     incomplete_datetime;

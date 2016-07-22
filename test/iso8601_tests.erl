@@ -57,8 +57,8 @@
          {"2016-06-23T14:10.55", 1466691033}
         ]).
 
-%% Have to be converted via to_epoch with 1000 as the optional
-%% argument for millisecond accuracy
+%% Have to be converted via to_epoch with 3 as the optional
+%% argument for millisecond accuracy (10^3)
 -define(FRACTIMES,
         [
          {"2016-06-23T14:10:33.1254", 1466691033125},
@@ -226,7 +226,9 @@ map_date(State, Str) ->
     jam:to_epoch(jam:process(jam_iso8601:parse(State, Str), [{target_accuracy, second}])).
 
 map_frac(Str) ->
-    jam:to_epoch(jam:process(jam_iso8601:parse(Str)), 1000).
+    %% We test with millisecond epoch values, so the precision
+    %% argument is 3 (for 10^3)
+    jam:to_epoch(jam:process(jam_iso8601:parse(Str)), 3).
 
 map_utc_time(Str) ->
     %% Arbitrary date
