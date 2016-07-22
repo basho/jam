@@ -429,6 +429,8 @@ utc_timezone_record() ->
 %% We want the integer `timezone' fields to represent adjustments
 %% necessary to convert to UTC, so India, with a +05:30 time zone,
 %% will map to `{timezone, "+05:30", -5, -30}' or `{timezone, "+0530", -5, -30}'.
+process_timezone(undefined) ->
+    undefined;
 process_timezone(#parsed_timezone{label="Z"}) ->
     utc_timezone_record();
 process_timezone(#parsed_timezone{label=TZ, hours=TZH, minutes=TZM}) ->
