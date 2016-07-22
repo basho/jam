@@ -26,10 +26,11 @@
 
 -export([
          process/1, process/2,
-         round_fractional_seconds/1,
-         convert_tz/2,
+         round_fractional_seconds/1, offset_round_fractional_seconds/1,
+         convert_tz/2, offset_convert_tz/2,
          is_valid/1, is_valid/2, is_complete/1,
-         normalize/1, to_epoch/1, to_epoch/2,
+         normalize/1, offset_normalize/1,
+         to_epoch/1, to_epoch/2,
          from_epoch/1, from_epoch/2,
          tz_offset/1]).
 
@@ -325,50 +326,63 @@ populate_target(Date, #parsed_time{second=undefined,
 populate_target(Date, Time, _Accuracy) ->
     populate_target(Date, Time, undefined).
 
--spec round_fractional_seconds(processed_record()) -> {0|1, processed_record()};
-                              ('undefined') -> {0, 'undefined'}.
+-spec round_fractional_seconds(processed_record()) -> processed_record();
+                              ('undefined') -> 'undefined'.
+round_fractional_seconds(Record) ->
+    {_Adjust, NewRecord} = offset_round_fractional_seconds(Record),
+    NewRecord.
+
 %% The integer returned as the first element of the tuple indicates
 %% whether the time rolled over to midnight: 1 for a 1 day increase, 0
 %% otherwise.
 %%
 %% If a datetime tuple is provided, the date element will be
 %% incremented in the return value if applicable.
-round_fractional_seconds(undefined) ->
+-spec offset_round_fractional_seconds(processed_record()) ->
+                                             {0|1, processed_record()};
+                                     ('undefined') -> {0, 'undefined'}.
+offset_round_fractional_seconds(undefined) ->
     {0, undefined};
-round_fractional_seconds(#time{fraction=undefined}=Time) ->
+offset_round_fractional_seconds(#time{fraction=undefined}=Time) ->
     {0, Time};
-round_fractional_seconds(#time{fraction=#fraction{value=Frac}}=Time) when Frac >= 0.5 ->
+offset_round_fractional_seconds(#time{fraction=#fraction{value=Frac}}=Time) when Frac >= 0.5 ->
     {DateBump, NewTime} =
         jam_math:add_time(jam_erlang:to_time(Time), {0, 0, 1}),
     {DateBump, jam_erlang:tuple_to_record(Time#time{fraction=undefined}, NewTime)};
-round_fractional_seconds(#datetime{date=Date, time=Time}) ->
-    {DateAdj, NewTime} = round_fractional_seconds(Time),
+offset_round_fractional_seconds(#datetime{date=Date, time=Time}) ->
+    {DateAdj, NewTime} = offset_round_fractional_seconds(Time),
     NewDate = jam_math:add_date(jam_erlang:to_date(Date), DateAdj),
     {DateAdj, #datetime{date=jam_erlang:tuple_to_record(#date{}, NewDate), time=NewTime#time{fraction=undefined}}};
-round_fractional_seconds(DateTime) ->
+offset_round_fractional_seconds(DateTime) ->
     {0, DateTime}.
 
--spec convert_tz(processed_record(), string()) -> {-1|0|1, processed_record()};
+-spec convert_tz(processed_record(), string()) -> processed_record();
+                ('undefined', string()) -> 'undefined'.
+convert_tz(Record, TZ) ->
+    {_Adjust, NewRecord} = offset_convert_tz(Record, TZ),
+    NewRecord.
+
+-spec offset_convert_tz(processed_record(), string()) -> {-1|0|1, processed_record()};
                 ('undefined', string()) -> {0, 'undefined'}.
-%% Much like `round_fractional_seconds/1` this function will return a
-%% tuple with an initial value that indicates whether the date changed
-%% as a result of changing time zones, and if supplied, the date will
-%% be transformed.
+%% Like other `offset_` functions this will return a tuple with an
+%% initial value that indicates whether the date changed as a result
+%% of changing time zones, and if supplied, the date will be
+%% transformed.
 %%
 %% The new timezone argument must be a valid ISO 8601 timezone, so: +
 %% or - is required, and hours/minutes must be 2 digits with an
 %% optional : separator.
-convert_tz(undefined, _NewTz) ->
+offset_convert_tz(undefined, _NewTz) ->
     {0, undefined};
-convert_tz(#datetime{time=#time{timezone=undefined}}, _NewTz) ->
+offset_convert_tz(#datetime{time=#time{timezone=undefined}}, _NewTz) ->
     {0, undefined};
-convert_tz(#datetime{date=Date, time=Time}, NewTz) ->
-    {DateAdj, NewTime} = convert_tz(Time, NewTz),
+offset_convert_tz(#datetime{date=Date, time=Time}, NewTz) ->
+    {DateAdj, NewTime} = offset_convert_tz(Time, NewTz),
     NewDate = jam_math:add_date(jam_erlang:to_date(Date), DateAdj),
     {DateAdj, #datetime{date=jam_erlang:tuple_to_record(#date{}, NewDate), time=NewTime}};
-convert_tz(#time{timezone=undefined}, _NewTz) ->
+offset_convert_tz(#time{timezone=undefined}, _NewTz) ->
     {0, undefined};
-convert_tz(#time{}=Time, NewTz) ->
+offset_convert_tz(#time{}=Time, NewTz) ->
     convert_processed_tz(Time, process(jam_iso8601:parse_tz(NewTz))).
 
 convert_processed_tz(#time{timezone=TzRec}=Time, TzRec) ->
@@ -543,15 +557,26 @@ is_valid_time(#time{}=Time, Options) ->
 is_valid_timezone(#timezone{}=TZ, _Options) ->
     abs(tz_offset(TZ)) =< 15 * 3600.
 
--spec normalize(date_record()) -> {integer(), date_record()};
-               (time_record()) -> {integer(), time_record()};
-               (datetime_record()) -> {integer(), datetime_record()}.
-normalize(#datetime{date=Date, time=Time}) ->
+-spec normalize('undefined') -> 'undefined';
+               (date_record()) -> date_record();
+               (time_record()) -> time_record();
+               (datetime_record()) -> datetime_record().
+normalize(Record) ->
+    {_Adjust, NewRecord} = offset_normalize(Record),
+    NewRecord.
+
+-spec offset_normalize('undefined') -> {0, 'undefined'};
+                      (date_record()) -> {integer(), date_record()};
+                      (time_record()) -> {integer(), time_record()};
+                      (datetime_record()) -> {integer(), datetime_record()}.
+offset_normalize(undefined) ->
+    {0, undefined};
+offset_normalize(#datetime{date=Date, time=Time}) ->
     {DateAdjust, NewTime} = normalize_time(Time),
     {DateAdjust, #datetime{date=normalize_date(Date, DateAdjust), time=NewTime}};
-normalize(#date{}=Date) ->
+offset_normalize(#date{}=Date) ->
     {0, Date};
-normalize(#time{}=Time) ->
+offset_normalize(#time{}=Time) ->
     normalize_time(Time).
 
 normalize_date(#date{}=Date, 0) ->
@@ -727,7 +752,7 @@ normalize_with_adjust_test_() ->
                         #time{hour=23,minute=59,second=60}}
                       ],
     lists:map(fun({Normalized, Time}) ->
-                      ?_assertEqual({1, Normalized}, jam:normalize(Time))
+                      ?_assertEqual({1, Normalized}, offset_normalize(Time))
               end, EquivWithAdjust).
 
 normalize_without_adjust_test_() ->
@@ -745,7 +770,7 @@ normalize_without_adjust_test_() ->
                 #time{hour=15}
                ],
     lists:map(fun(Record) ->
-                      ?_assertEqual({0, Record}, jam:normalize(Record))
+                      ?_assertEqual({0, Record}, offset_normalize(Record))
               end, NoAdjust).
 
 tz_valid_test_() ->

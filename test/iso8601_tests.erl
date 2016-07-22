@@ -147,7 +147,7 @@ non_roundtrip_string_test() ->
 
 
 map_tz(Str, TZ) ->
-    {_Bump, NewDateTime} = jam:convert_tz(jam:process(jam_iso8601:parse(Str)), TZ),
+    NewDateTime = jam:convert_tz(jam:process(jam_iso8601:parse(Str)), TZ),
     jam_erlang:to_datetime(NewDateTime).
 
 tzconversions_test_() ->
@@ -239,20 +239,20 @@ map_utc_time(Str) ->
     %% If this results in a changed date, we need to add another test
     %% utility function to increment our arbitrary date
     {0, NewTime} =
-        jam:round_fractional_seconds(ProcessedTime),
+        jam:offset_round_fractional_seconds(ProcessedTime),
     RoundedTime = jam_erlang:to_time(NewTime),
     universal_datetime_TO_utc_seconds({Date, RoundedTime}) -
         universal_datetime_TO_utc_seconds({Date, {0, 0, 0}}).
 
 map_datetime(Str) ->
     Processed = jam:process(jam_iso8601:parse(Str), [{target_accuracy, second}]),
-    {_Bump, Rounded} = jam:round_fractional_seconds(Processed),
+    Rounded = jam:round_fractional_seconds(Processed),
     jam:to_epoch(Rounded).
 
 map_utc_datetime(Str) ->
     Processed = jam:process(jam_iso8601:parse(Str), [{target_accuracy, second}]),
-    {_Bump, DateTime} = jam:round_fractional_seconds(Processed),
-    {_UTCBump, UTCDateTime} = jam:convert_tz(DateTime, "+00:00"),
+    DateTime = jam:round_fractional_seconds(Processed),
+    UTCDateTime = jam:convert_tz(DateTime, "+00:00"),
     jam:to_epoch(UTCDateTime).
 
 add_tz(UTC, TZ) ->

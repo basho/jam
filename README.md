@@ -93,9 +93,11 @@ For a more sophisticated example, we handle a leap second with a
 fractional component and time zone conversion.
 
 Note that in order to support passing times without dates as
-arguments, `jam:normalize/1`, `jam:round_fractional_seconds/1` and
-`jam:convert_tz/2` return a two-tuple, with the first value an integer
-expressing whether or not a date adjustment resulted.
+arguments, `jam:offset_normalize/1`,
+`jam:offset_round_fractional_seconds/1` and `jam:offset_convert_tz/2`
+return a two-tuple, with the first value an integer expressing whether
+or not a date adjustment resulted. The non-`offset_` version of each
+function drops the date adjustment in favor of a single return value
 
 ```erlang
 1> {_, DT1} = jam:normalize(jam:process(jam_iso8601:parse("20150630T23:59:60.738Z"))).
