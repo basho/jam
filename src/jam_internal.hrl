@@ -4,6 +4,13 @@
 %% Seconds between year 0 and 1970. Unsurprisingly, a pretty big number.
 -define(GREGORIAN_MAGIC, 62167219200).
 
+-type accuracy() :: 'year'   |
+                    'month'  |
+                    'day'    |
+                    'hour'   |
+                    'minute' |
+                    'second'.
+
 -type maybe_string() :: string() | 'undefined'.
 -type precision() :: non_neg_integer().
 

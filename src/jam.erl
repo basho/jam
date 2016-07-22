@@ -254,6 +254,8 @@ expand_to_datetime(_Date, Time) when is_atom(Time) ->
 expand_to_datetime(Date, Time) ->
     #datetime{date=Date, time=Time}.
 
+-spec expand(compiled_record(), accuracy()) -> compiled_record();
+            ('undefined', accuracy()) -> 'undefined'.
 expand(undefined, _Target) ->
     undefined;
 expand(Record, Target) when is_atom(Target) ->
