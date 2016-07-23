@@ -27,7 +27,8 @@
 -export([
          compile/1, compile/2,
          round_fractional_seconds/1, offset_round_fractional_seconds/1,
-         expand/2,
+         expand/2, increment/2, increment_time/2, offset_increment_time/2,
+         increment_date/2,
          convert_tz/2, offset_convert_tz/2,
          is_valid/1, is_valid/2, is_complete/1,
          normalize/1, offset_normalize/1,
@@ -244,6 +245,75 @@ check_accuracy(_Date, #parsed_time{second=undefined, fraction=undefined}, Minimu
 check_accuracy(Date, Time, _Minimum) ->
     {Date, Time}.
 
+%% Given a possibly-incomplete compiled record, increment it by some
+%% number of units (possibly a negative number).
+-spec increment(datetime_record(), integer()) -> datetime_record();
+               (date_record(), integer()) -> date_record();
+               (time_record(), integer()) -> time_record();
+               ('undefined', integer()) -> 'undefined'.
+increment(Anything, 0) ->
+    Anything;
+increment(#datetime{date=Date,time=Time}, Incr) ->
+    id_and_increment(Date, Time, Incr);
+increment(#date{}=Date, Incr) ->
+    increment_date(Date, Incr);
+increment(#time{}=Time, Incr) ->
+    increment_time(Time, Incr);
+increment(undefined, _Incr) ->
+    undefined.
+
+%% Branch on whether the #time record is unpopulated
+id_and_increment(Date, #time{hour=Hour}=Time, Incr) when Hour /= undefined ->
+    {DateAdj, NewTime} = offset_increment_time(Time, Incr),
+    expand_to_datetime(increment_date(Date, DateAdj), NewTime);
+id_and_increment(Date, Time, Incr) ->
+    expand_to_datetime(increment_date(Date, Incr), Time).
+
+increment_time(#time{}=Time, 0) ->
+    Time;
+increment_time(#time{}=Time, Incr) ->
+    {_DateAdj, NewTime} = offset_increment_time(Time, Incr),
+    NewTime.
+
+offset_increment_time(#time{}=Time, 0) ->
+    {0, Time};
+offset_increment_time(#time{hour=Hour,
+                            minute=undefined}=Time, Incr) ->
+    {DateAdj, NewHour} = wrap(Hour + Incr, hour),
+    {DateAdj, Time#time{hour=NewHour}};
+offset_increment_time(#time{hour=Hour, minute=Minute,
+                            second=undefined}=Time, Incr) ->
+    {HourAdj, NewMinute} = wrap(Minute + Incr, minute),
+    {DateAdj, NewHour} = wrap(Hour + HourAdj, hour),
+    {DateAdj, Time#time{hour=NewHour, minute=NewMinute}};
+offset_increment_time(#time{hour=Hour, minute=Minute,
+                            second=Second}=Time, Incr) ->
+    {MinuteAdj, NewSecond} = wrap(Second + Incr, second),
+    {HourAdj, NewMinute} = wrap(Minute + MinuteAdj, minute),
+    {DateAdj, NewHour} = wrap(Hour + HourAdj, hour),
+    {DateAdj, Time#time{hour=NewHour, minute=NewMinute,
+                        second=NewSecond}}.
+
+increment_date(#date{}=Date, 0) ->
+    Date;
+increment_date(#date{year=Year,
+                     month=undefined}=Date, Incr) ->
+    %% We do not attempt to block things like incrementing the year
+    %% into negative values
+    Date#date{year=Year + Incr};
+increment_date(#date{year=Year,
+                     month=Month,
+                     day=undefined}=Date, Incr) ->
+    {YearAdj, NewMonth} = wrap(Month + Incr, month),
+    NewYear = Year + YearAdj,
+    Date#date{year=NewYear, month=NewMonth};
+increment_date(#date{year=Year,
+                     month=Month,
+                     day=Day}=Date, Incr) ->
+    {NewYear, NewMonth, NewDay} = jam_math:add_date({Year, Month, Day}, Incr),
+    Date#date{year=NewYear, month=NewMonth, day=NewDay}.
+
+
 %% All errors are atoms; rather than create a partial datetime record
 %% with an error atom nested inside, make certain we return the error
 %% directly.
@@ -254,6 +324,11 @@ expand_to_datetime(_Date, Time) when is_atom(Time) ->
 expand_to_datetime(Date, Time) ->
     #datetime{date=Date, time=Time}.
 
+%% Given a target accuracy, populate all undefined fields larger or
+%% equal to that accuracy to 1 (for date fields) or 0 (for time
+%% fields). So, e.g., afterwards anything populated to `minute'
+%% accuracy may still have `undefined' for the seconds field, but
+%% every larger span will be an integer value.
 -spec expand(compiled_record(), accuracy()) -> compiled_record();
             ('undefined', accuracy()) -> 'undefined'.
 expand(undefined, _Target) ->
@@ -693,18 +768,18 @@ timezone_to_utc(#time{hour=Hour, minute=Minute,
     {Wrap, Time#time{timezone=utc_timezone_record(), hour=NewHour, minute=NewMinute}}.
 
 adjust_time({Hour, HourAdj}, {Minute, MinuteAdj}) ->
-    {ExtraHourAdj, NewMinute} = wrap(Minute+u2z(MinuteAdj), {0, 59}),
-    {DayAdj, NewHour} = wrap(Hour+u2z(HourAdj)+ExtraHourAdj, {0, 23}),
+    {ExtraHourAdj, NewMinute} = wrap(Minute+u2z(MinuteAdj), minute),
+    {DayAdj, NewHour} = wrap(Hour+u2z(HourAdj)+ExtraHourAdj, hour),
     {DayAdj, NewHour, NewMinute}.
 
-wrap(Int, {Min, Max}) when Int < Min ->
-    Adj = Min - Int,
-    {-1, (Max+1)-Adj};
-wrap(Int, {Min, Max}) when Int > Max ->
-    Adj = Int - Max,
-    {1, Min+(Adj-1)};
-wrap(Int, {_Min, _Max}) ->
-    {0, Int}.
+wrap(Int, month) ->
+    jam_math:wrap(Int, 13, 1);
+wrap(Int, hour) ->
+    jam_math:wrap(Int, 24, 0);
+wrap(Int, minute) ->
+    jam_math:wrap(Int, 60, 0);
+wrap(Int, second) ->
+    jam_math:wrap(Int, 60, 0).
 
 %% Convert to seconds. Must be the negation of the resulting integer
 %% because the timezone record tracks the adjustment necessary to
@@ -765,16 +840,109 @@ tz_offset_test_() ->
                       ?_assertEqual(Offset, tz_to_seconds(TZ))
               end, TZs).
 
--define(EPOCHS,
-        [
-         {1466691033125, 3},
-         {1466691033, 0}
-        ]).
-
 roundtrip_epoch_test_() ->
+    Epochs = [
+              {1466691033125, 3},
+              {1466691033, 0}
+             ],
+
     lists:map(fun({Epoch, Precision}) ->
                       ?_assertEqual(Epoch,
                                     to_epoch(from_epoch(Epoch, Precision), Precision))
-              end, ?EPOCHS).
+              end, Epochs).
+
+expand_test_() ->
+    SameDate = [
+                {{2016, 3, undefined}, month},
+                {{1929, 10, 29}, day},
+                {{1429, 1, 1}, month},
+                {{99, undefined, undefined}, year}
+               ],
+    SameTime = [
+                {{23, undefined, undefined}, hour},
+                {{15, 0, undefined}, hour},
+                {{15, 1, undefined}, minute},
+                {{3, 23, 60}, second}
+               ],
+    NewDate = [
+                {{2016, undefined, undefined}, {2016, 1, undefined}, month},
+                {{1929, 10, undefined}, {1929, 10, 1}, day},
+                {{1429, undefined, undefined}, {1429, 1, 1}, day}
+               ],
+    NewTime = [
+                {{undefined, undefined, undefined}, {0, undefined, undefined}, hour},
+                {{15, undefined, undefined}, {15, 0, undefined}, minute},
+                {{15, undefined, undefined}, {15, 0, 0}, second},
+                {{15, 5, undefined}, {15, 5, 0}, second}
+               ],
+    lists:map(fun({Date, Accuracy}) ->
+                      DateRecord = jam_erlang:tuple_to_record(#date{}, Date),
+                      ?_assertEqual(DateRecord, expand(DateRecord, Accuracy))
+              end, SameDate)
+        ++
+    lists:map(fun({Time, Accuracy}) ->
+                      TimeRecord = jam_erlang:tuple_to_record(#time{}, Time),
+                      ?_assertEqual(TimeRecord, expand(TimeRecord, Accuracy))
+              end, SameTime)
+        ++
+    lists:map(fun({Old, New, Accuracy}) ->
+                      OldDateRecord = jam_erlang:tuple_to_record(#date{}, Old),
+                      NewDateRecord = jam_erlang:tuple_to_record(#date{}, New),
+                      ?_assertEqual(NewDateRecord, expand(OldDateRecord, Accuracy))
+              end, NewDate)
+        ++
+    lists:map(fun({Old, New, Accuracy}) ->
+                      OldTimeRecord = jam_erlang:tuple_to_record(#time{}, Old),
+                      NewTimeRecord = jam_erlang:tuple_to_record(#time{}, New),
+                      ?_assertEqual(NewTimeRecord, expand(OldTimeRecord, Accuracy))
+              end, NewTime).
+
+increment_test_() ->
+    Date = [
+            {{2016, 1, 9}, {2016, 1, 1}, -8},
+            {{1929, 10, 29}, {1930, 1, 2}, 65},
+            {{1429, 1, 1}, {1428, 12, 31}, -1},
+            {{1996, 2, 28}, {1996, 2, 29}, 1},
+            {{1997, undefined, undefined}, {1996, undefined, undefined}, -1},
+            {{1997, 1, undefined}, {1996, 12, undefined}, -1}
+           ],
+    Time = [
+            {{23, 59, 59}, {0, 1, 22}, 22 + 60 + 1},
+            {{23, 59, undefined}, {1, 1, undefined}, 62}
+           ],
+    OffsetTime = [
+            {1, {23, 59, 59}, {0, 1, 22}, 22 + 60 + 1},
+            {1, {23, 59, undefined}, {1, 1, undefined}, 62},
+            {-1, {3, undefined, undefined}, {20, undefined, undefined}, -7}
+           ],
+    DateTime = [
+                {{{2016, 1, 9}, {undefined, undefined, undefined}},
+                 {{2016, 1, 1}, {undefined, undefined, undefined}}, -8},
+                {{{2016, 1, 9}, {15, undefined, undefined}},
+                 {{2016, 1, 8}, {16, undefined, undefined}}, -23}
+               ],
+
+    lists:map(fun({Old, New, Incr}) ->
+                      OldDateRecord = jam_erlang:tuple_to_record(#date{}, Old),
+                      NewDateRecord = jam_erlang:tuple_to_record(#date{}, New),
+                      ?_assertEqual(NewDateRecord, increment(OldDateRecord, Incr))
+              end, Date)
+        ++
+    lists:map(fun({Old, New, Incr}) ->
+                      OldTimeRecord = jam_erlang:tuple_to_record(#time{}, Old),
+                      NewTimeRecord = jam_erlang:tuple_to_record(#time{}, New),
+                      ?_assertEqual(NewTimeRecord, increment(OldTimeRecord, Incr))
+              end, Time)
+        ++
+    lists:map(fun({DateAdj, Old, New, Incr}) ->
+                      OldTimeRecord = jam_erlang:tuple_to_record(#time{}, Old),
+                      NewTimeRecord = jam_erlang:tuple_to_record(#time{}, New),
+                      ?_assertEqual({DateAdj, NewTimeRecord}, offset_increment_time(OldTimeRecord, Incr))
+              end, OffsetTime)
+        ++
+    lists:map(fun({OldDT, NewDT, Incr}) ->
+                      ?_assertEqual(jam_erlang:tuple_to_record(#datetime{}, NewDT),
+                                    increment(jam_erlang:tuple_to_record(#datetime{}, OldDT), Incr))
+              end, DateTime).
 
 -endif.

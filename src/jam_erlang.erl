@@ -41,6 +41,9 @@ to_time(Time) ->
 to_datetime(#datetime{}=DT) ->
     {to_date(DT), to_time(DT)}.
 
+tuple_to_record(#datetime{}=DT, {Date, Time}) ->
+    DT#datetime{date=tuple_to_record(#date{}, Date),
+                time=tuple_to_record(#time{}, Time)};
 tuple_to_record(#date{}=Date, {Year, Month, Day}) ->
     Date#date{year=Year, month=Month, day=Day};
 tuple_to_record(#time{}=Time, {Hour, Minute, Second}) ->
