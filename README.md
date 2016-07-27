@@ -23,24 +23,36 @@ Yet to be supported:
 * Date/time intervals
 * Week dates
 
+See `jam_iso8601:parse/{1,2}`.
+
 ### Compilation
 
-The compilation step converts the strings captured by parsing into a
-(possibly valid) date and/or time. The resulting tuples will not be
-the same as Erlang's date/time tuples because this library permits
-fractional seconds, "incomplete" dates and times, and time zones.
+The compilation step (`jam:compile/{1,2}`) converts the strings
+captured by parsing into a (possibly valid) date and/or time. The
+resulting tuples will not be the same as Erlang's date/time tuples
+because this library permits fractional seconds, "incomplete" dates
+and times, and time zones.
 
 ### Validation
+
+Validation is entirely optional. It is possible to extensively
+manipulate invalid date/time values, and developers are advised to
+validate at whatever point in the pipeline seems reasonable (but no
+earlier than compilation).
 
 The compilation step only exercises as much knowledge about "real"
 times and dates as is necessary (e.g., knowing what years are leap
 years to properly interpret ordinal dates). A time such as "25:15" is
 a possible outcome of the parsing and compilation steps, so validation
-functions are supplied.
+functions `is_valid/{1,2}` are supplied.
+
+Also see **Expansion** below for a discussion of incompleteness. An
+incomplete date or time can still be valid.
 
 ### Normalization
 
-There are two unusual times which may arise.
+There are two edge case time values which may arise, and which are
+corrected for using `jam:normalize/1`.
 
 The first, permitted by ISO 8601, is "24:00". This is *not* the same
 as "00:00", at least when also attached to a date. "2016-06-15 24:00"
@@ -60,22 +72,41 @@ during normalization.
 
 ### Expansion
 
-ISO 8601 allows for incomplete date/time strings, and while we'll need
-a complete date/time for most conversions, in some cases we need to
-know that the incoming string was incomplete, so expansion of an
-incomplete date/time record is a distinct step in the processing
-timeline.
+ISO 8601 allows for incomplete date/time strings.
+
+We want a complete date/time for some conversions, so expansion of an
+incomplete date/time record via `jam:expand/2` is an optional step in
+the processing timeline.
 
 The values added to expand an incomplete record are the lower bounds
 for the appropriate fields, so 1 for month or day, 0 for any time
 field.
 
+`jam:is_complete/1` can be used to test a date, time, or datetime
+structure for completeness.
+
+It may be useful to adjust an incomplete date/time via
+`jam:increment/2`. This identifies the least significant populated
+value and adds an integer value. One example is strictly greater-than
+comparisons in Riak's timeseries support.
+
 ### Translation
 
-Dates and times can be converted to alternative time zones, to ISO
-8601 (and, in the future, other formats), to Erlang's date/time
-tuples, or to integers (UNIX epoch with support for sub-second
-values).
+Dates and times can be converted to alternative time zones
+(`jam:convert_tz/2`), to ISO 8601 (and, in the future, other formats)
+(`jam_iso8601:to_string/{1,2}`), to Erlang's date/time tuples (see
+`jam_erlang`), or to integers (UNIX epoch with support for sub-second
+values via `jam:to_epoch/{1,2}`).
+
+`jam:round_fractional_seconds/1` is recommended before converting to
+Erlang tuples.
+
+Jam's internal records are not intended to be manipulated or examined
+by code outside the library, thus doing so places your code at risk of
+breaking with future releases.
+
+UTC epoch integers can also be used to create jam datetime records:
+see `jam:from_epoch/{1,2}`.
 
 ## Illustrated usage
 
