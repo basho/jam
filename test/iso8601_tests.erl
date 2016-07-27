@@ -83,6 +83,7 @@
          "2016-06-23T14:10:33+05:00",
          "2016-06-23T14:10:33-11:30",
          "2016-06-23T00:00:05.023",
+         "2016-06-23T00:00:05.2",
          "14:10:59",
          "2016-06",
          "2016-06-23",
@@ -97,8 +98,24 @@
          "2016"
         ]).
 
+-define(VIA_EPOCH_STRINGS,
+        [
+         "2016-06-23T14:10:33Z",
+         "2016-06-23T00:00:05.023Z",
+         "2016-06-23T00:00:05.2Z",
+         "2016-06-23T00:00:05.0201Z"
+        ]).
+
 %% Seconds between year 0 and 1970. Unsurprisingly, a pretty big number.
 -define(GREGORIAN_MAGIC, 62167219200).
+
+via_epoch_test_() ->
+    %% The precision values passed to `to_epoch' and `from_epoch' must
+    %% be at least as high as the max number of significant digits in
+    %% any of the strings' fractional components
+    lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:from_epoch(jam:to_epoch(jam:expand(jam:compile(jam_iso8601:parse(Str)), second), 6), 6))) end,
+              ?VIA_EPOCH_STRINGS).
+
 
 to_string_test_() ->
     lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:compile(jam_iso8601:parse(Str)))) end,

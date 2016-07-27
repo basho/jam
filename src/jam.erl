@@ -709,9 +709,14 @@ to_epoch(#datetime{}=DateTime, Precision) ->
       trunc(precision_to_mult(Precision))
      ).
 
+%% When splitting an epoch value into two parts (`{Seconds,
+%% FractionalSeconds}') we have to return the fractional seconds as a
+%% zero-padded (on the left) string for later manipulation.
 split_epoch(Integer, Precision) ->
+    FormatString = lists:flatten(io_lib:format("~~~B..0B", [Precision])),
     Divisor = trunc(precision_to_mult(Precision)),
-    {Integer div Divisor, Integer rem Divisor}.
+    {Integer div Divisor,
+     lists:flatten(io_lib:format(FormatString, [Integer rem Divisor]))}.
 
 -spec from_epoch(non_neg_integer()) -> datetime_record().
 from_epoch(Epoch) ->
@@ -720,7 +725,7 @@ from_epoch(Epoch) ->
 -spec from_epoch(non_neg_integer(), non_neg_integer()) -> datetime_record().
 from_epoch(Epoch, Precision) ->
     {EpochSeconds, Remainder} = split_epoch(Epoch, Precision),
-    Fraction = #fraction{value=Remainder / precision_to_mult(Precision), precision=Precision},
+    Fraction = determine_epoch_fraction(Remainder, Precision),
     TZ = utc_timezone_record(),
     {Date, Time} = utc_seconds_to_universal_datetime(EpochSeconds),
     #datetime{
@@ -728,6 +733,24 @@ from_epoch(Epoch, Precision) ->
        time=jam_erlang:tuple_to_record(#time{fraction=Fraction,
                                              timezone=TZ}, Time)
       }.
+
+%% The incoming precision is the number of digits beyond epoch
+%% seconds. For example, if the epoch value contained microseconds,
+%% there were originally 6 digits to the right of the UTC epoch second
+%% value.
+%%
+%% The precision that gets stashed in the `#fraction{}' record is the
+%% number of "significant" digits. Again assuming microseconds, if the
+%% original epoch value were `946690215020100', `020100' would be the
+%% `Remainder' argument (as a string) and there are 4 significant
+%% digits (the last two zeroes are inconsequential) so the resulting
+%% record should be `#fraction{value=0.0201, precision=4}'.
+determine_epoch_fraction([], _Precision) ->
+    undefined;
+determine_epoch_fraction(Remainder, Precision) ->
+    Fraction = list_to_integer(Remainder) / precision_to_mult(Precision),
+    FractionPrecision = length(string:strip(Remainder, right, $0)),
+    #fraction{value=Fraction, precision=FractionPrecision}.
 
 utc_seconds_to_universal_datetime(Seconds) ->
     calendar:gregorian_seconds_to_datetime(Seconds + ?GREGORIAN_MAGIC).
