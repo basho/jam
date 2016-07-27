@@ -72,6 +72,10 @@
          {"20160101T11:14:33+06:30", "-08:15",
           {{2015, 12, 31}, {20, 29, 33}}},
          {"20160101T03:14:33+06:30", "+12:15",
+          {{2016, 1, 1}, {8, 59, 33}}},
+
+         %% Pass "+06:30" as default timezone to `jam:compile'
+         {"20160101T03:14:33", "+12:15",
           {{2016, 1, 1}, {8, 59, 33}}}
         ]).
 
@@ -217,7 +221,8 @@ non_roundtrip_string_test() ->
 
 
 map_tz(Str, TZ) ->
-    NewDateTime = jam:convert_tz(jam:compile(jam_iso8601:parse(Str)), TZ),
+    NewDateTime = jam:convert_tz(jam:compile(jam_iso8601:parse(Str),
+                                             [{default_timezone, "+06:30"}]), TZ),
     jam_erlang:to_erlangish_datetime(NewDateTime).
 
 tzconversions_test_() ->
