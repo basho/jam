@@ -81,7 +81,7 @@
 %% hour is 23 and minute is 59, but generally speaking we will not
 %% always know what time zone the time is being expressed as, so that
 %% requirement will not be enforced by default (and thus 60 seconds
-%% will be considered valid).
+%% will be always considered valid without that parameter).
 %%
 %% No more than one leap second has ever been added to the same day,
 %% so this library will treat any number of seconds greater than 60 as
@@ -405,6 +405,8 @@ offset_round_fractional_seconds(#datetime{date=Date, time=Time}) ->
 offset_round_fractional_seconds(DateTime) ->
     {0, DateTime}.
 
+%% Note: if the time provided as the first argument does not include a
+%% timezone, this will return `undefined'
 -spec convert_tz(compiled_record(), string()) -> compiled_record();
                 ('undefined', string()) -> 'undefined'.
 convert_tz(Record, TZ) ->
@@ -548,6 +550,10 @@ is_complete(#parsed_calendar{}) ->
 is_valid(Record) ->
     is_valid(Record, []).
 
+%% The only flag for the options list for `is_valid/2' is
+%% `leap_second_midnight'. If you want to enforce that :60 is only
+%% valid at midnight UTC, convert the time to UTC first with
+%% `convert_tz'
 -spec is_valid(compiled_record()|timezone()|'undefined', list()) -> boolean().
 is_valid(undefined, _Options) ->
     false;
