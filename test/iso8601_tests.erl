@@ -91,6 +91,29 @@
          "2016"
         ]).
 
+-define(COMPLETE_STRINGS,
+        [
+         "2016-06-23T14:10:33",
+         "2016-06-23T14:10:59",
+         "2016-06-23T14:10:33Z",
+         "2016-06-23T14:10:33+05:00",
+         "2016-06-23T14:10:33-11:30",
+         "2016-06-23T00:00:05.023",
+         "2016-06-23T00:00:05.2",
+         "2016-06-23T00:00.2",
+         "2016-06-23T00.2",
+         "14:10:59",
+         "2016-06-23"
+        ]).
+
+-define(INCOMPLETE_STRINGS,
+        [
+         "2016-06-23T14:10",
+         "2016-06-23T14:10+05:00",
+         "2016-06",
+         "2016"
+        ]).
+
 -define(INVALID_EXTENDED_STRINGS,
         [
          "2016-06-23T14:60",
@@ -122,6 +145,13 @@
 
 %% Seconds between year 0 and 1970. Unsurprisingly, a pretty big number.
 -define(GREGORIAN_MAGIC, 62167219200).
+
+completeness_test_() ->
+    lists:map(fun(Str) -> ?_assert(jam:is_complete(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?COMPLETE_STRINGS)
+        ++
+    lists:map(fun(Str) -> ?_assert(not jam:is_complete(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?INCOMPLETE_STRINGS).
 
 via_epoch_test_() ->
     %% The precision values passed to `to_epoch' and `from_epoch' must
