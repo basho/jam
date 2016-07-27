@@ -38,6 +38,8 @@
 -include("jam_iso8601.hrl").
 -include("jam_internal.hrl").
 
+-type parse_error() :: 'week_dates_unsupported' | 'undefined'.
+
 %% There is limited flexibility allowed in parsing, to comply with ISO
 %% 8601: The time designator "T" used to separate date and time can be
 %% a single space instead.
@@ -84,11 +86,11 @@ init() ->
 %% parse/{1,2} is generally less efficient than the explicit alternatives,
 %% but a leading "T" means we can restrict ourselves to looking at
 %% time parsing
--spec parse(string()) -> parsed_time() | parsed_date() | parsed_datetime().
+-spec parse(string()) -> parsed_time() | parsed_date() | parsed_datetime() | parse_error().
 parse(String) ->
     parse(re_list(), String).
 
--spec parse(list(), string()) -> parsed_time() | parsed_date() | parsed_datetime().
+-spec parse(list(), string()) -> parsed_time() | parsed_date() | parsed_datetime() | parse_error().
 parse(REs, [$T|Rest]) ->
     parse_time(REs, Rest);
 parse(REs, String) ->
