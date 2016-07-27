@@ -14,20 +14,11 @@
 -type maybe_string() :: string() | 'undefined'.
 -type precision() :: non_neg_integer().
 
-%% Different parsers may populate fraction or subsecond, but not both
-%% at the same time.
 -record(parsed_fraction, {
           value :: string()
          }
        ).
 -type parsed_fraction() :: #parsed_fraction{}.
-
--record(parsed_subsecond, {
-          subsecond :: string(),
-          precision :: string()
-         }
-       ).
--type parsed_subsecond() :: #parsed_subsecond{}.
 
 -record(parsed_timezone, {
           label :: string(),
@@ -42,7 +33,6 @@
           minute :: maybe_string(),
           second :: maybe_string(),
           fraction :: parsed_fraction()|'undefined',
-          subsecond :: parsed_subsecond()|'undefined',
           timezone :: parsed_timezone()|'undefined'
          }
        ).
@@ -86,13 +76,6 @@
 -type date_field() :: pos_integer().
 -type time_field() :: non_neg_integer().
 
--record(subsecond, {
-          subsecond :: non_neg_integer(),
-          precision :: precision()
-         }
-       ).
--type subsecond() :: #subsecond{}.
-
 -record(timezone, {
           label :: string(),
           hours :: integer(),
@@ -129,7 +112,6 @@
           minute :: time_field()|'undefined',
           second :: time_field()|'undefined',
           fraction :: fraction(),
-          subsecond :: subsecond(),
           timezone :: timezone()
          }
        ).
