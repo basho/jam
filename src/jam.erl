@@ -733,6 +733,9 @@ split_epoch(Integer, Precision) ->
 from_epoch(Epoch) ->
     from_epoch(Epoch, 0).
 
+%% The 2nd argument indicates the number of digits "below" UTC epoch
+%% seconds. For example, if the input value is microseconds, the 2nd
+%% argument should be 6.
 -spec from_epoch(non_neg_integer(), non_neg_integer()) -> datetime_record().
 from_epoch(Epoch, Precision) ->
     {EpochSeconds, Remainder} = split_epoch(Epoch, Precision),
