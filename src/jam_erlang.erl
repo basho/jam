@@ -25,21 +25,31 @@
 
 -include("jam_internal.hrl").
 
--export([to_date/1, to_time/1, to_datetime/1]).
+-export([to_erlangish_date/1, to_erlangish_time/1, to_erlangish_datetime/1]).
 -export([record_to_tuple/1, tuple_to_record/2]).
 
-to_date(#datetime{date=Date}) ->
+%% These functions are termed `erlangish' because the resulting tuples
+%% may contain `undefined' values, but if not they should be standard
+%% Erlang date/time tuples.
+%%
+%% No timezone or fractional seconds information is included, since
+%% Erlang supports none of that as part of the data structures, so if
+%% you wish to convert to a different time zone or round fractional
+%% seconds do that via the relevant `jam' functions before calling
+%% these.
+
+to_erlangish_date(#datetime{date=Date}) ->
     record_to_tuple(Date);
-to_date(Date) ->
+to_erlangish_date(Date) ->
     record_to_tuple(Date).
 
-to_time(#datetime{time=Time}) ->
+to_erlangish_time(#datetime{time=Time}) ->
     record_to_tuple(Time);
-to_time(Time) ->
+to_erlangish_time(Time) ->
     record_to_tuple(Time).
 
-to_datetime(#datetime{}=DT) ->
-    {to_date(DT), to_time(DT)}.
+to_erlangish_datetime(#datetime{}=DT) ->
+    {to_erlangish_date(DT), to_erlangish_time(DT)}.
 
 tuple_to_record(#datetime{}=DT, {Date, Time}) ->
     DT#datetime{date=tuple_to_record(#date{}, Date),

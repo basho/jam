@@ -166,7 +166,7 @@ non_roundtrip_string_test() ->
 
 map_tz(Str, TZ) ->
     NewDateTime = jam:convert_tz(jam:compile(jam_iso8601:parse(Str)), TZ),
-    jam_erlang:to_datetime(NewDateTime).
+    jam_erlang:to_erlangish_datetime(NewDateTime).
 
 tzconversions_test_() ->
     lists:map(fun({DateTime, NewTZ, Result}) ->
@@ -258,7 +258,7 @@ map_utc_time(Str) ->
     %% utility function to increment our arbitrary date
     {0, NewTime} =
         jam:offset_round_fractional_seconds(ProcessedTime),
-    RoundedTime = jam_erlang:to_time(NewTime),
+    RoundedTime = jam_erlang:to_erlangish_time(NewTime),
     universal_datetime_TO_utc_seconds({Date, RoundedTime}) -
         universal_datetime_TO_utc_seconds({Date, {0, 0, 0}}).
 

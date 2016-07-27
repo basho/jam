@@ -307,13 +307,13 @@ to_string(#time{fraction=Frac,timezone=Tz}=Time, Options) ->
     UseSeparators = proplists:get_value(format, Options, extended) == extended,
 
     lists:flatten([t_if_opted(lists:keyfind(t_prefix, 1, Options)),
-                   render_time(jam_erlang:to_time(Time), UseSeparators),
+                   render_time(jam_erlang:to_erlangish_time(Time), UseSeparators),
                    render_fraction(Frac, Options),
                    render_tz(Tz, UseSeparators, Options)]);
 to_string(#date{}=Date, Options) ->
     UseSeparators = proplists:get_value(format, Options, extended) == extended,
 
-    render_date(jam_erlang:to_date(Date), UseSeparators);
+    render_date(jam_erlang:to_erlangish_date(Date), UseSeparators);
 to_string(#datetime{date=Date, time=Time}, Options) ->
     DateTimeDivider =
         date_time_divider(lists:keyfind(datetime_separator, 1, Options)),

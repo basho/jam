@@ -396,11 +396,11 @@ offset_round_fractional_seconds(#time{fraction=undefined}=Time) ->
     {0, Time};
 offset_round_fractional_seconds(#time{fraction=#fraction{value=Frac}}=Time) when Frac >= 0.5 ->
     {DateBump, NewTime} =
-        jam_math:add_time(jam_erlang:to_time(Time), {0, 0, 1}),
+        jam_math:add_time(jam_erlang:to_erlangish_time(Time), {0, 0, 1}),
     {DateBump, jam_erlang:tuple_to_record(Time#time{fraction=undefined}, NewTime)};
 offset_round_fractional_seconds(#datetime{date=Date, time=Time}) ->
     {DateAdj, NewTime} = offset_round_fractional_seconds(Time),
-    NewDate = jam_math:add_date(jam_erlang:to_date(Date), DateAdj),
+    NewDate = jam_math:add_date(jam_erlang:to_erlangish_date(Date), DateAdj),
     {DateAdj, #datetime{date=jam_erlang:tuple_to_record(#date{}, NewDate), time=NewTime#time{fraction=undefined}}};
 offset_round_fractional_seconds(DateTime) ->
     {0, DateTime}.
@@ -427,7 +427,7 @@ offset_convert_tz(#datetime{time=#time{timezone=undefined}}, _NewTz) ->
     {0, undefined};
 offset_convert_tz(#datetime{date=Date, time=Time}, NewTz) ->
     {DateAdj, NewTime} = offset_convert_tz(Time, NewTz),
-    NewDate = jam_math:add_date(jam_erlang:to_date(Date), DateAdj),
+    NewDate = jam_math:add_date(jam_erlang:to_erlangish_date(Date), DateAdj),
     {DateAdj, #datetime{date=jam_erlang:tuple_to_record(#date{}, NewDate), time=NewTime}};
 offset_convert_tz(#time{timezone=undefined}, _NewTz) ->
     {0, undefined};
@@ -441,14 +441,14 @@ convert_compiled_tz(#time{timezone=#timezone{hours=AddH, minutes=AddM}}=Time,
     %% The old timezone has integer values expressed as values to add
     %% to reach UTC, so this case is simple
     {DateAdj, NewTime} =
-        jam_math:add_time(jam_erlang:to_time(Time), {AddH, AddM}),
+        jam_math:add_time(jam_erlang:to_erlangish_time(Time), {AddH, AddM}),
     {DateAdj, jam_erlang:tuple_to_record(Time#time{timezone=NewTz}, NewTime)};
 convert_compiled_tz(#time{timezone=#timezone{hours=OldAddH, minutes=OldAddM}}=Time,
                      #timezone{hours=NewAddH, minutes=NewAddM}=NewTz) ->
     %% We convert to UTC first, then to the new timezone by inverting
     %% the sign on the values to add.
     {UTCAdj, UTCTime} =
-        jam_math:add_time(jam_erlang:to_time(Time), {OldAddH, OldAddM}),
+        jam_math:add_time(jam_erlang:to_erlangish_time(Time), {OldAddH, OldAddM}),
     {NewAdj, NewTime} =
         jam_math:add_time(UTCTime, {-NewAddH, -NewAddM}),
     {NewAdj + UTCAdj, jam_erlang:tuple_to_record(Time#time{timezone=NewTz}, NewTime)}.
@@ -473,12 +473,12 @@ compile_date(Date) ->
 compile_time(undefined) ->
     undefined;
 compile_time(#parsed_time{fraction=undefined, timezone=TZ}=Time) ->
-    {Hour, Minute, Second} = jam_erlang:to_time(Time),
+    {Hour, Minute, Second} = jam_erlang:to_erlangish_time(Time),
     jam_erlang:tuple_to_record(#time{timezone=compile_timezone(TZ)},
                                {l2i(Hour), l2i(Minute), l2i(Second)});
 compile_time(#parsed_time{fraction=#parsed_fraction{value=Fractional},
                           timezone=TZ}=Time) ->
-    {Hour, Minute, Second} = jam_erlang:to_time(Time),
+    {Hour, Minute, Second} = jam_erlang:to_erlangish_time(Time),
     %% Figure out what to do with the fractional value. Whatever is
     %% left once we start applying it has to get passed down the chain.
     Frac = {list_to_float("0." ++ Fractional), length(Fractional)},
@@ -566,7 +566,7 @@ is_valid_date(#date{year=Year, month=undefined, day=undefined}, _Options)
 is_valid_date(#date{month=Month, day=undefined}, _Options) ->
     Month > 0 andalso Month < 13;
 is_valid_date(#date{}=Date, _Options) ->
-    calendar:valid_date(jam_erlang:to_date(Date)).
+    calendar:valid_date(jam_erlang:to_erlangish_date(Date)).
 
 %% A minute with 61 seconds (thus `second=60') can happen when leap
 %% seconds are added. Leap seconds are added at midnight UTC.
@@ -595,7 +595,7 @@ is_valid_time(#time{hour=Hour, minute=undefined, second=undefined}, _Options) ->
 is_valid_time(#time{hour=Hour, minute=Minute, second=undefined}, _Options) ->
     is_valid_time_tuple({Hour, Minute, 0}, false);
 is_valid_time(#time{}=Time, Options) ->
-    is_valid_time_tuple(jam_erlang:to_time(Time),
+    is_valid_time_tuple(jam_erlang:to_erlangish_time(Time),
                         lists:member(leap_second_midnight, Options)).
 
 %% As of this writing, the valid time zone range is from -1200 to
@@ -630,7 +630,7 @@ normalize_date(#date{}=Date, 0) ->
     Date;
 normalize_date(#date{}=Date, Adjust) ->
     jam_erlang:tuple_to_record(
-      #date{}, jam_math:add_date(jam_erlang:to_date(Date), Adjust)).
+      #date{}, jam_math:add_date(jam_erlang:to_erlangish_date(Date), Adjust)).
 
 
 %% Allow for 24:00:00 per the ISO 8601 standard and the occasional
@@ -779,9 +779,9 @@ convert_to_erlang(#datetime{date=Date, time=Time}) ->
     NewDate = normalize_date(Date, DateAdjust),
     {convert_to_erlang(NewDate), convert_to_erlang(NewTime)};
 convert_to_erlang(#date{}=Date) ->
-    jam_erlang:to_date(Date);
+    jam_erlang:to_erlangish_date(Date);
 convert_to_erlang(#time{}=Time) ->
-    jam_erlang:to_time(Time).
+    jam_erlang:to_erlangish_time(Time).
 
 timezone_to_utc(#time{timezone=undefined}=Time) ->
     {0, Time};
