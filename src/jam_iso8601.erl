@@ -337,8 +337,8 @@ t_if_opted({t_prefix, false}) ->
 t_if_opted({t_prefix, true}) ->
     "T".
 
-int_to_str(Int) when Int > 60 ->
-    int_to_str(Int, 4);
+%% Nearly all date/time components are 2 digits in width, year being
+%% the exception.
 int_to_str(Int) ->
     int_to_str(Int, 2).
 
@@ -349,10 +349,12 @@ int_to_str(Int, Width) ->
     lists:flatten(io_lib:format(Format, [Int])).
 
 render_date(Date, UseSeparator) ->
-    string:join(lists:map(fun int_to_str/1,
-                          lists:filter(fun(undefined) -> false;
-                                          (_) -> true
-                                       end, tuple_to_list(Date))),
+    DateComponents = tuple_to_list(Date),
+    string:join([int_to_str(hd(DateComponents), 4)] ++
+                    lists:map(fun(Int) -> int_to_str(Int, 2) end,
+                              lists:filter(fun(undefined) -> false;
+                                              (_) -> true
+                                           end, tl(DateComponents))),
                 date_separator(UseSeparator)).
 
 render_time(Time, UseSeparator) ->
