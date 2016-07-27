@@ -79,6 +79,7 @@
         [
          "2016-06-23T14:10",
          "2016-06-23T14:10:33",
+         "2016-06-23T14:10:59",
          "2016-06-23T14:10:33Z",
          "2016-06-23T14:10:33+05:00",
          "2016-06-23T14:10:33-11:30",
@@ -88,6 +89,19 @@
          "2016-06",
          "2016-06-23",
          "2016"
+        ]).
+
+-define(INVALID_EXTENDED_STRINGS,
+        [
+         "2016-06-23T14:60",
+         "2016-06-31T14:10:33",
+         "2016-06-31T14:10:61",
+         "2016-06-32T14:10:33Z",
+         "2016-06-00T14:10:33+05:00",
+         "2016-06-23T24:10:33-11:30",
+         "2016-06-23T23:10:33-16:30",
+         "2016-06-23T23:10:33-16:60",
+         "2016-13"
         ]).
 
 -define(BASIC_STRINGS,
@@ -115,6 +129,14 @@ via_epoch_test_() ->
     %% any of the strings' fractional components
     lists:map(fun(Str) -> ?_assertEqual(Str, jam_iso8601:to_string(jam:from_epoch(jam:to_epoch(jam:expand(jam:compile(jam_iso8601:parse(Str)), second), 6), 6))) end,
               ?VIA_EPOCH_STRINGS).
+
+
+validation_test_() ->
+    lists:map(fun(Str) -> ?_assert(jam:is_valid(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?EXTENDED_STRINGS)
+        ++
+    lists:map(fun(Str) -> ?_assert(not jam:is_valid(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?INVALID_EXTENDED_STRINGS).
 
 
 to_string_test_() ->

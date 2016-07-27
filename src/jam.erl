@@ -586,10 +586,13 @@ is_valid_time_tuple({Hour, Minute, Second}, LeapSecondMustBeMidnight) ->
         andalso (Hour < 24 orelse (Hour == 24 andalso Minute + Second == 0))
         andalso Minute > -1 andalso Minute < 60
         andalso Second > -1
-        andalso (Second < 59 orelse
+        andalso (Second < 60 orelse
                  midnight_leap_second({Hour, Minute, Second},
                                       LeapSecondMustBeMidnight)).
 
+is_valid_time(#time{timezone=TZ}=Time, Options) when TZ /= undefined ->
+    is_valid_time(Time#time{timezone=undefined}, Options) andalso
+        is_valid_timezone(TZ, Options);
 is_valid_time(#time{hour=Hour, minute=undefined, second=undefined}, _Options) ->
     is_valid_time_tuple({Hour, 0, 0}, false);
 is_valid_time(#time{hour=Hour, minute=Minute, second=undefined}, _Options) ->
@@ -601,8 +604,10 @@ is_valid_time(#time{}=Time, Options) ->
 %% As of this writing, the valid time zone range is from -1200 to
 %% +1400. Since politicians love to mess with this, going to treat
 %% 1500 as an absolute maximum and hope for the best.
-is_valid_timezone(#timezone{}=TZ, _Options) ->
-    abs(tz_to_seconds(TZ)) =< 15 * 3600.
+is_valid_timezone(#timezone{hours=Hours, minutes=Minutes}=TZ, _Options) ->
+    abs(tz_to_seconds(TZ)) =< 15 * 3600 andalso
+        is_valid_time_tuple({abs(Hours), abs(Minutes), 0}, []).
+
 
 -spec normalize('undefined') -> 'undefined';
                (date_record()) -> date_record();
