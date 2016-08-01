@@ -82,10 +82,12 @@ The values added to expand an incomplete record are the lower bounds
 for the appropriate fields, so 1 for month or day, 0 for any time
 field.
 
-`jam:is_complete/1` can be used to test a date, time, or datetime
-structure for completeness.
+`jam:is_complete/1` can be used to test a datetime structure (compiled
+or not) for completeness. Use `jam:is_complete_date/1` or
+`jam:is_complete_time/1` for dates and times outside a datetime
+structure.
 
-It may be useful to adjust an incomplete date/time via
+It may be useful to adjust a compiled, incomplete date/time via
 `jam:increment/2`. This identifies the least significant populated
 value and adds an integer value. One example is strictly greater-than
 comparisons in Riak's timeseries support.

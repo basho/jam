@@ -30,7 +30,8 @@
          expand/2, increment/2, increment_time/2, offset_increment_time/2,
          increment_date/2,
          convert_tz/2, offset_convert_tz/2,
-         is_valid/1, is_valid/2, is_complete/1,
+         is_valid/1, is_valid/2,
+         is_complete/1, is_complete_date/1, is_complete_time/1,
          normalize/1, offset_normalize/1,
          to_epoch/1, to_epoch/2,
          from_epoch/1, from_epoch/2,
@@ -522,29 +523,43 @@ maybe_fractional(undefined, {Frac, Precision}) ->
 maybe_fractional(Value, Frac) ->
     {list_to_integer(Value), Frac}.
 
--spec is_complete(compiled_record()|parsed_record()) -> boolean().
+%% Allowing `is_complete/1` to take times, dates, and datetimes can
+%% lead to unexpected consequences such as a date returning true when
+%% the client expected to validate a completed datetime
+%% record. Instead, give dates and times their own function.
+-spec is_complete(datetime_record()|parsed_datetime()) -> boolean().
 is_complete(#datetime{date=Date, time=Time}) ->
-    is_complete(Date) andalso is_complete(Time);
+    is_complete_date(Date) andalso is_complete_time(Time);
 is_complete(#parsed_datetime{date=Date, time=Time}) ->
-    is_complete(Date) andalso is_complete(Time);
-is_complete(#time{second=undefined}) ->
+    is_complete_date(Date) andalso is_complete_time(Time);
+is_complete(_) ->
+    false.
+
+-spec is_complete_time(time_record()|parsed_time()) -> boolean().
+is_complete_time(#time{second=undefined}) ->
     false;
-is_complete(#time{}) ->
+is_complete_time(#time{}) ->
     true;
-is_complete(#parsed_time{second=undefined}) ->
+is_complete_time(#parsed_time{second=undefined}) ->
     false;
-is_complete(#parsed_time{}) ->
+is_complete_time(#parsed_time{}) ->
     true;
-is_complete(#date{day=undefined}) ->
+is_complete_time(_) ->
+    false.
+
+-spec is_complete_date(date_record()|parsed_date()) -> boolean().
+is_complete_date(#date{day=undefined}) ->
     false;
-is_complete(#date{}) ->
+is_complete_date(#date{}) ->
     true;
-is_complete(#parsed_ordinal{}) ->
+is_complete_date(#parsed_ordinal{}) ->
     true;
-is_complete(#parsed_calendar{day=undefined}) ->
+is_complete_date(#parsed_calendar{day=undefined}) ->
     false;
-is_complete(#parsed_calendar{}) ->
-    true.
+is_complete_date(#parsed_calendar{}) ->
+    true;
+is_complete_date(_) ->
+    false.
 
 -spec is_valid(compiled_record()|timezone()|'undefined') -> boolean().
 is_valid(Record) ->

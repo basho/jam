@@ -95,7 +95,7 @@
          "2016"
         ]).
 
--define(COMPLETE_STRINGS,
+-define(COMPLETE_DATETIMES,
         [
          "2016-06-23T14:10:33",
          "2016-06-23T14:10:59",
@@ -105,17 +105,40 @@
          "2016-06-23T00:00:05.023",
          "2016-06-23T00:00:05.2",
          "2016-06-23T00:00.2",
-         "2016-06-23T00.2",
-         "14:10:59",
-         "2016-06-23"
+         "2016-06-23T00.2"
         ]).
 
--define(INCOMPLETE_STRINGS,
+-define(COMPLETE_DATES,
+        [
+         "2016-06-23",
+         "2016-257"
+        ]).
+
+-define(COMPLETE_TIMES,
+        [
+         "14:10:59",
+         "14:10.95",
+         "14.22",
+         "14.22Z"
+        ]).
+
+
+-define(INCOMPLETE_DATETIMES,
         [
          "2016-06-23T14:10",
-         "2016-06-23T14:10+05:00",
+         "2016-06-23T14:10+05:00"
+        ]).
+
+-define(INCOMPLETE_DATES,
+        [
          "2016-06",
          "2016"
+        ]).
+
+-define(INCOMPLETE_TIMES,
+        [
+         "14:10",
+         "14"
         ]).
 
 -define(INVALID_EXTENDED_STRINGS,
@@ -152,10 +175,23 @@
 
 completeness_test_() ->
     lists:map(fun(Str) -> ?_assert(jam:is_complete(jam:compile(jam_iso8601:parse(Str)))) end,
-              ?COMPLETE_STRINGS)
+              ?COMPLETE_DATETIMES)
+        ++
+    lists:map(fun(Str) -> ?_assert(jam:is_complete_date(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?COMPLETE_DATES)
+        ++
+    lists:map(fun(Str) -> ?_assert(jam:is_complete_time(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?COMPLETE_TIMES)
         ++
     lists:map(fun(Str) -> ?_assert(not jam:is_complete(jam:compile(jam_iso8601:parse(Str)))) end,
-              ?INCOMPLETE_STRINGS).
+              ?INCOMPLETE_DATETIMES)
+        ++
+    lists:map(fun(Str) -> ?_assert(not jam:is_complete_date(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?INCOMPLETE_DATES)
+        ++
+    lists:map(fun(Str) -> ?_assert(not jam:is_complete_time(jam:compile(jam_iso8601:parse(Str)))) end,
+              ?INCOMPLETE_TIMES).
+
 
 via_epoch_test_() ->
     %% The precision values passed to `to_epoch' and `from_epoch' must
