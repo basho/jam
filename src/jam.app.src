@@ -1,7 +1,7 @@
 {application, jam,
  [
   {description, "An Erlang date/time processing library"},
-  {vsn, "1"},
+  {vsn, "1.0.0"},
   {modules, [
              jam,
              jam_math,
@@ -13,5 +13,8 @@
                   kernel,
                   stdlib
                  ]},
-  {env, []}
+  {env, []},
+  {maintainers,["basho", "Heinz N. Gies"]},
+  {licenses,["Apache"]},
+  {links,[{"Github", "https://github.com/basho/jam"},{"hex fork","https://github.com/project-fifo/jam"}]}
  ]}.
